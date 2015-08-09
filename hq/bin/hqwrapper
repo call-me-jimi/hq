@@ -1,0 +1,11 @@
+#!/bin/bash
+
+d=`dirname $0`
+com=`basename $0`
+
+# call freezed version
+#cd $d/dist && ./$com ${@+"$@"}
+
+# call with the right python
+source $d/../../.hqrc
+python $d/py/$com.py ${@+"$@"}

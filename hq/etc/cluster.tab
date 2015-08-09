@@ -1,0 +1,2 @@
+short_name	full_name	total_number_slots	max_number_occupied_slots	additional_info	allow_info_server	info_server_port	active
+xaverius	xaverius	2	2	my localhost	False	22222	True
