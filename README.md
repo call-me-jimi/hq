@@ -48,26 +48,26 @@ make
 # activate virtual environment (environmental variables HQPATH and HQ_VE_PATH will be set)
 source .hqrc
 
-## Install mysql server
+## Install mysql server (in $HQ_VE_PATH/usr/mysql-${MYSQL_VERSION}-hqdb)
 cd $HQPATH
 make sql
 
 ## create database
-cd $MYSQL_INSTANCE
-scripts/mysql_install_db --defaults-file=$MYSQL_INSTANCE/hqdb.cnf
+cd $HQ_VE_PATH/usr/mysql-${MYSQL_VERSION}-hqdb
+scripts/mysql_install_db --defaults-file=hqdb.cnf
 
 ## start server
-bin/mysqld_safe --defaults-file=$MYSQL_INSTANCE/hqdb.cnf
+bin/mysqld_safe --defaults-file=hqdb.cnf
 
 # password
 root:mYSqlTmdB
 hqadmin:mYsqLTmdB
 
 ## create password for root
-bin/mysqladmin --defaults-file=$MYSQL_INSTANCE/hqdb.cnf -u root password 'mYSqlTmdB'
+bin/mysqladmin --defaults-file=hqdb.cnf -u root password 'mYSqlTmdB'
 
 # connect to database (on database01)
-bin/mysql --defaults-file=$MYSQL_INSTANCE/hqdb.cnf --user=root -p
+bin/mysql --defaults-file=hqdb.cnf --user=root -p
 
 # drop anonymous user in able to connect with bin/mysql --host=<HOST> --port=<PORT> --user=<USER> --database=<DATABASE> -p
 # see: http://stackoverflow.com/questions/10299148/mysql-error-1045-28000-access-denied-for-user-billlocalhost-using-passw
@@ -82,7 +82,7 @@ mysql> CREATE DATABASE IF NOT EXISTS hqdb;
 mysql> GRANT ALL PRIVILEGES ON hqdb.* TO 'hqadmin'@'%' WITH GRANT OPTION;
 
 # stop server
-bin/mysqladmin --defaults-file=$MYSQL_INSTANCE/hqdb.cnf -u root -p shutdown
+bin/mysqladmin --defaults-file=hqdb.cnf -u root -p shutdown
 
 # connect as hqadmin to mysql server
 bin/mysql --host=localhost --port=2114 --database=hqdb --user=hqadmin -p
@@ -126,7 +126,15 @@ In the current implementation roles are not considered, but each user has to hav
 
      etc/cluster.tab
 
-6. Start hq-server (if you sourced the file .hqrc, the HQPATH/bin has been added to the
+6. set database configuration
+
+     etc/hq-db.cfg
+
+7. (optional) create tables in database
+
+     hq-dbadmin --create-tables --add-standard-entries
+
+8. Start hq-server (if you sourced the file .hqrc, the HQPATH/bin has been added to the
 environmental variable $PATH.)
 
       hq-server
