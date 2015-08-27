@@ -171,18 +171,23 @@ class hQBaseServer(SocketServer.ThreadingMixIn, SocketServer.TCPServer, Daemon, 
         pass
 
 
-    def loop( self, name, fct, interval, **kwargs ):
-        """! @brief generic function for a loop function
+    def run_loop( self, name, **kwargs ):
+        """! @brief generic function for periodically executing a function
 
         """
-        
+
         while True:
+            loop = self.loops[ name ]
+            
+            interval = loop[ 'interval' ]
+            fct = loop[ 'fct' ]
+            
             # wait a little bit
             time.sleep( interval )
 
             try:
-                if not self.loops[ name ][ 'event' ].is_set():
-                    self.loops[ name ][ 'event' ].set()
+                if not loop[ 'event' ].is_set():
+                    loop[ 'event' ].set()
                     fct( **kwargs )
                 else:
                     # skip while the previous function is still executing
@@ -190,7 +195,7 @@ class hQBaseServer(SocketServer.ThreadingMixIn, SocketServer.TCPServer, Daemon, 
             except:
                 pass
             finally:
-                self.loops[ name ][ 'event' ].clear()
+                loop[ 'event' ].clear()
 
             
     def start_loops( self ):
@@ -205,14 +210,12 @@ class hQBaseServer(SocketServer.ThreadingMixIn, SocketServer.TCPServer, Daemon, 
 
             #l = threading.Thread( target=fct, kwargs={ 'interval': interval} )
             loopKwargs = kwargs.copy()
-            loopKwargs.update( { 'name': loopName,
-                                 'fct': fct,
-                                 'interval': interval } )
+            loopKwargs.update( { 'name': loopName } )
 
             # add an event lock to the loop
             self.loops[ loopName ][ 'event' ] = threading.Event()
                                
-            l = threading.Thread( target=self.loop, kwargs=loopKwargs )
+            l = threading.Thread( target=self.run_loop, kwargs=loopKwargs )
             l.setDaemon( True )
             l.setName( "(loop) {name}".format(name=loopName) )
             l.started = datetime.now()
@@ -398,38 +401,67 @@ class hQBaseRequestProcessor(object):
                                             help = "just sleep",
                                             fct = self.process_sleep )
 
-        # help fill be set with the first call of self.process
-        self.help = {}
+        ## help fill be set with the first call of self.process
+        ##self.help = {}
 
     def process(self, requestStr, request, logger, server):
         """! @brief Process a requestStr"""
         self.writeLog = logger
         self.server = server
 
-        if not self.help:
-            self.help = { key: re.compile('^{cmd_name} help$'.format(cmd_name=cmd.name)) for key,cmd in self.commands.iteritems() }
-        
-        try:
-            # (1) check if help of a command is requested
-            key = next( key for key,r in self.help.iteritems() if r.match( requestStr ) )
-            
-            cmd = self.commands[ key ]
+        #if not self.help:
+        #    # generate dictinary with regular regression for each command
+        #    self.help = { key: re.compile('^help {cmd_name}$'.format(cmd_name=cmd.name)) for key,cmd in self.commands.iteritems() }
 
-            response = [ "help for "+cmd.name+":" ]
-            response.append( "--------------------" )
-            response.append( "full command: {c}".format(c=cmd.get_command_str() ) )
-            response.append( "" )
-            response.append( cmd.get_fullhelp() )
-            request.send( '\n'.join( response ) )
-        except:
+        m = re.match( 'help ?(.*)', requestStr )
+        if m:
+            command = m.group(1)
+            
+            if command=="":
+                # no command has been given
+                # return all commands
+                help = []
+                help.append( "Known commands:" )
+
+                # iterate over all commands defined in self.commands
+                help.extend( hQUtils.renderHelp( sorted(self.commands.keys()), self.commands ) )
+
+                request.send( '\n'.join( help ) )
+            else:
+                try:
+                    key = next( key for key,c in self.commands.iteritems() if command==c.name )
+
+                    cmd = self.commands[ key ]
+
+                    response = [ "help for '"+cmd.name+"':" ]
+                    response.append( "--------------------" )
+                    response.append( "full command: {c}".format(c=cmd.get_command_str() ) )
+                    response.append( "" )
+                    response.append( cmd.get_fullhelp() )
+
+                    request.send( '\n'.join( response ) )
+                except StopIteration:
+                    matching_commands = [ c.name for key,c in self.commands.iteritems() if c.name.startswith( command ) ]
+
+                    if matching_commands:
+                        response = []
+                        response.append( "command '" + command + "' is unknown!" )
+                        response.append( "" )
+                        response.append( "similar commands:" )
+                        for c in matching_commands:
+                            response.append( "  "  + c )
+
+                        request.send( '\n'.join( response ) )
+                    else:
+                        request.send( 'no matching command.' )
+        else:
             # (2) find matching command and execute associate function
             try:
                 cmd = next( cmd for cmd_str,cmd in self.commands.iteritems() if cmd.match( requestStr ) )
             except:
                 self.writeLog("unknown command.", logCategory='request_processing')
-                #print traceback.print_exc()
 
-                request.send("What do you want?")
+                request.send("what do you want?")
                 return
 
             # process request
@@ -566,17 +598,14 @@ class hQBaseRequestProcessor(object):
         request.send( '\n'.join( loopList ) )
 
 
-    def process_setloop( self, request, **kwargs ):
+    def process_setloop( self, request, loop_key, interval ):
         """! @brief process 'lsloop' command
         """
 
-        loop_key = kwargs['loop_key']
-        interval = kwargs['interval']
-
-        if loopKey in self.server.loops:
-            self.server.loops[ loopKey ]['interval'] = interval
+        if loop_key in self.server.loops:
+            self.server.loops[ loop_key ]['interval'] = float(interval)
             
-            request.send('interval of loop {k} has been updated'.format(k=loopKey))
+            request.send('interval of loop "{k}" has been updated.'.format(k=loop_key))
         else:
             request.send('invalid key.')
         
