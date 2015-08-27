@@ -1,5 +1,8 @@
 import os
 import ConfigParser
+import getpass
+
+import hQUtils
 
 class hQServerDetails(object):
     """! @brief Details about a running hQ server"""
@@ -25,7 +28,7 @@ class hQServerDetails(object):
             BASEDIR =  "{home}/.hq".format(home=homedir)
 
             self.cfgFile = "{basedir}/{serverType}.cfg".format( basedir = BASEDIR,
-                                                                   serverType = self.server_type )
+                                                                serverType = self.server_type )
 
         # store details 
         self.hQServerDetails = {}
@@ -38,7 +41,10 @@ class hQServerDetails(object):
             self.hQServerDetails['port'] = cfg.getint( 'SETTINGS', 'port' )
         except: 
             # could not read config file
-            pass
+
+            # set default
+            self.hQServerDetails['host'] = os.uname()[1]
+            self.hQServerDetails['port'] = hQUtils.getDefaultPort( getpass.getuser() )
 
             
     def get( self, key, defaultValue=None):

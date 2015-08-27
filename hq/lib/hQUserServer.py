@@ -163,7 +163,7 @@ class hQUserServer(hQBaseServer, Daemon):
             statusDict = self.get_status()
 
             if short:
-                status = "[occpied slots:{oSlots:>3}/{tSlots:>3}] [waiting jobs:{wJobs:>3}]".format(**statusDict)
+                status = "[occupied slots:{oSlots:>3}/{tSlots:>3}] [waiting jobs:{wJobs:>3}]".format(**statusDict)
             else:
                 hl = "--------------------------------------------------"
                 info = "[{t}] STATUS OF HQ-SERVER ON {h}:{p}".format(t=t, h=self.host, p=self.port)
