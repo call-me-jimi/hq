@@ -125,7 +125,7 @@ class hQServer(hQBaseServer):
         t = datetime.now()
         
         if short:
-            status = "[status:{status}] [occpied slots:{oSlots:>3}/{tSlots:>3}] [waiting jobs:{wJobs:>3}]".format(**statusDict)
+            status = "[status:{status}] [occupied slots:{oSlots:>3}/{tSlots:>3}] [waiting jobs:{wJobs:>3}]".format(**statusDict)
         else:
             hl = "--------------------------------------------------"
             info = "[{t}] STATUS OF HQ-SERVER ON {h}:{p}".format(t=t, h=self.host, p=self.port)
@@ -428,67 +428,69 @@ class hQServer(hQBaseServer):
                 # set flag
                 self.updating_load_hosts.set()
 
-            dbconnection = hQDBConnection()
+            try:
+                dbconnection = hQDBConnection()
 
-            if not hosts:
-                # get all hosts given in database
-                hosts = dbconnection.query( db.Host ).\
-                        join( db.HostSummary ). \
-                        filter( and_(db.HostSummary.available==True,
-                                     db.HostSummary.reachable==True ) ).all()
+                if not hosts:
+                    # get all hosts given in database
+                    hosts = dbconnection.query( db.Host ).\
+                            join( db.HostSummary ). \
+                            filter( and_(db.HostSummary.available==True,
+                                         db.HostSummary.reachable==True ) ).all()
 
+                hostsDict = { h.full_name: h for h in hosts }
 
-            hostsDict = { h.full_name: h for h in hosts }
+                self.logger.write( "Checking load of {n} host{s} ...".format( n=len(hosts), s="s" * int( len(hostsDict)>1 ) ),
+                                   logCategory='debug' )
 
-            self.logger.write( "Checking load of {n} host{s} ...".format( n=len(hosts), s="s" * int( len(hostsDict)>1 ) ),
-                               logCategory='debug' )
+                hostLoadList = []
+                # iterate over keys
+                for host in hostsDict:
+                    current = hQHostLoad( host )
+                    hostLoadList.append( current )
+                    current.start()
 
-            hostLoadList = []
-            # iterate over keys
-            for host in hostsDict:
-                current = hQHostLoad( host )
-                hostLoadList.append( current )
-                current.start()
+                for p in hostLoadList:
+                     p.join()
+                     self.logger.write( "     {h} has load {l}".format( h=p.host, l=p.load[0] ),
+                                        logCategory='debug' )
 
-            for p in hostLoadList:
-                 p.join()
-                 self.logger.write( "     {h} has load {l}".format( h=p.host, l=p.load[0] ),
-                                    logCategory='debug' )
+                     # update load in database
+                     host = hostsDict[ p.host ]
 
-                 # update load in database
-                 host = hostsDict[ p.host ]
+                     # get all HostLoad instances attached to Host
+                     hostLoads = dbconnection.query( db.HostLoad )\
+                                 .join( db.Host )\
+                                 .filter( db.Host.id==host.id )\
+                                 .order_by( db.HostLoad.datetime )\
+                                 .all()
 
-                 # get all HostLoad instances attached to Host
-                 hostLoads = dbconnection.query( db.HostLoad )\
-                             .join( db.Host )\
-                             .filter( db.Host.id==host.id )\
-                             .order_by( db.HostLoad.datetime )\
-                             .all()
+                     # check whether there is a no newer entry
+                     if len(hostLoads)==0 or hostLoads[-1].datetime<datetime.now():
+                         # store only the last 5 load information
+                         if len(hostLoads)>4:
+                             # delete oldest one
+                             dbconnection.delete( hostLoads[0] )
 
-                 # check whether there is a no newer entry
-                 if len(hostLoads)==0 or hostLoads[-1].datetime<datetime.now():
-                     # store only the last 5 load information
-                     if len(hostLoads)>4:
-                         # delete oldest one
-                         dbconnection.delete( hostLoads[0] )
+                         # create new HostLoad instance
+                         hostLoad = db.HostLoad( host = host,
+                                                 loadavg_1min = p.load[0],
+                                                 loadavg_5min = p.load[1],
+                                                 loadavg_10min = p.load[2] )
 
-                     # create new HostLoad instance
-                     hostLoad = db.HostLoad( host = host,
-                                             loadavg_1min = p.load[0],
-                                             loadavg_5min = p.load[1],
-                                             loadavg_10min = p.load[2] )
+                         dbconnection.introduce( hostLoad )
 
-                     dbconnection.introduce( hostLoad )
+                dbconnection.commit()
 
-            dbconnection.commit()
-            
-            # connection has to be removed. otherwise calling hQDSession returns (in the same thread)
-            # the same connection which doesn't see any updates in the meantime
-            dbconnection.remove()
-
-            if not force:
-                # set flag
-                self.updating_load_hosts.clear()
+                # connection has to be removed. otherwise calling hQDSession returns (in the same thread)
+                # the same connection which doesn't see any updates in the meantime
+                dbconnection.remove()
+            except:
+                pass
+            finally:
+                if not force:
+                    # set flag
+                    self.updating_load_hosts.clear()
         
     def after_request_processing( self ):
         """! @brief is executed after a request came in
