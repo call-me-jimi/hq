@@ -179,9 +179,14 @@ if __name__ == '__main__':
     #keyfile = "%s/.taskmanager/%s.key" % (homedir,user)
     #ca_certs = "%s/.taskmanager/ca_certs.%s.crt" % (homedir,user)
 
+    # create HOMEDIR/.hq directory
+    hqDir = "{home}/.hq".format( home=os.environ['HOME'] )
+
+    if not os.path.exists( hqDir ):
+        os.makedirs( hqDir )
 
     ####################################
-    # send requests to TMS
+    # send requests to hq-user-server
     
     args.command = join(args.command,' ')
 

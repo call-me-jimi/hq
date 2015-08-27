@@ -30,9 +30,6 @@ consoleLog.setFormatter(formatter)
 # add handler to logger
 logger.addHandler(consoleLog)
 
-HOMEDIR = os.environ['HOME']
-USER = pwd.getpwuid(os.getuid())[0]
-
 # get path to hq. it is assumed that this script is in the bin/py directory of
 # the hq package.
 HQPATH = os.path.normpath( os.path.join( os.path.dirname( os.path.realpath(__file__) ) + '/../..') )
@@ -85,7 +82,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(
         prog=PROG,
         formatter_class=argparse.RawDescriptionHelpFormatter,
-        usage="%(prog)s [-h --help] [options] COMMAND",
+        usage="%(prog)s [-h --help] [options] [help] COMMAND",
         description='\n'.join( textwrap.wrap("Connect to your hq-user-server", width=textWidth) +
                                ['\n'] +
                                textwrap.wrap("  host: {}".format(HQ_US_HOST), width=textWidth) +
@@ -94,19 +91,19 @@ if __name__ == '__main__':
                                textwrap.wrap("and send the COMMAND to it and print response to stdout. If the hq-user-server is not running, a server will be started.")
                                ),
         epilog='Written by Hendrik.')
+    
     parser.add_argument('command',
                         metavar = 'COMMAND',
                         help = "Command which will be sent to the server."
                         )
     
-    #parser.add_argument('-e', '--do_not_use_eocstring',
-    #                    dest = 'useEOCString',
-    #                    action = 'store_false',
-    #                    default = True,
-    #                    help = 'Do not use EOCString. The default EOCString is "{eocs}". This can be changed by option -E.'.format(eocs=defaultEOCString)
-    #                   )
+    parser.add_argument('commandArgs',
+                        metavar = 'ARGS',
+                        nargs = argparse.REMAINDER,
+                        help = "Arguments of the COMMAND, e.g., help to get help about bare COMMAND."
+                        )
     
-    parser.add_argument('-v', '--verbose_mode',
+    parser.add_argument('-v', '--verbose-mode',
                         nargs = 0,
                         dest = 'verboseMode',
                         action = ValidateVerboseMode,
@@ -117,9 +114,14 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     try:
+        # create HOMEDIR/.hq directory
+        hqDir = "{home}/.hq".format( home=os.environ['HOME'] )
+        
+        if not os.path.exists( hqDir ):
+            os.makedirs( hqDir )
+        
         proxy = hQServerProxy( serverType = 'user-server',
-                                verboseMode = args.verboseMode )
-
+                               verboseMode = args.verboseMode )
         proxy.run()
 
         if not proxy.running:
@@ -129,9 +131,11 @@ if __name__ == '__main__':
         logger.info( "Connection to {host}:{port}".format( host=proxy.host,
                                                            port=proxy.port ) )
 
-        proxy.send(args.command)
+        command = ' '.join( [args.command] + args.commandArgs )
+        
+        proxy.send( command )
 
-        logger.info( "Command: {com}".format(com=args.command ))
+        logger.info( "Command: {com}".format(com=command ))
 
         receivedStr = proxy.recv()
 
