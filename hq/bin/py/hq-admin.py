@@ -39,10 +39,10 @@ LIBPATH  = '%s/lib' % HQPATH	# for hq packages
 sys.path.insert(0,LIBPATH)
 
 from hQSocket import hQSocket
-from hQDetails import hQDetails
+from hQServerDetails import hQServerDetails
 
 # get stored host and port from taskdispatcher
-hqDetails = hQDetails('hq-server')
+hqDetails = hQServerDetails('hq-server')
 
 hqHost = hqDetails.get('host', None)
 hqPort = hqDetails.get('port', None)
@@ -98,7 +98,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(
         prog=PROG,
         formatter_class=argparse.RawDescriptionHelpFormatter,
-        usage="%(prog)s [-h --help] [options] COMMAND [help]",
+        usage="%(prog)s [-h --help] [options] [help] COMMAND",
         description='\n'.join( textwrap.wrap("Connect to connect to the hq-server", width=textWidth) +
                                ['\n'] +
                                textwrap.wrap("  host: {}".format(hqHost), width=textWidth) +
@@ -118,21 +118,6 @@ if __name__ == '__main__':
                         help = "Arguments of the COMMAND, e.g., help to get help about bare COMMAND."
                         )
     
-    parser.add_argument('-e', '--do_not_use_eocstring',
-                        dest = 'useEOCString',
-                        action = 'store_false',
-                        default = True,
-                        help = 'Do not use EOCString. The default EOCString is "{eocs}". This can be changed by option -E.'.format(eocs='??')
-                       )
-    
-    #parser.add_argument('-s', '--use_ssl_connection',
-    #                    dest = 'useSSLConnection',
-    #                    choices = ('True','False'),
-    #                    action = ValidateBool,
-    #                    default = useSSLConnection,
-    #                    help = 'Use secure socket connection. Default: {v}'.format(v=str(useSSLConnection))
-    #                    )
-    
     parser.add_argument('-S', '--server_settings',
                         nargs = 2,
                         metavar = ('HOST','PORT'),
@@ -151,10 +136,6 @@ if __name__ == '__main__':
                         )
     
     args = parser.parse_args()
-
-    # if not using EndOfCommunication string then set it to empty string
-    if not args.useEOCString:
-        args.EOCString = None
 
     # here the the certificates should be read
     keyfile = None
