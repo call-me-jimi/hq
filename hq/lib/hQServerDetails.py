@@ -2,7 +2,7 @@ import os
 import ConfigParser
 import getpass
 
-import hQUtils
+import hq.lib.hQUtils
 
 class hQServerDetails(object):
     """! @brief Details about a running hQ server"""

@@ -26,19 +26,14 @@ consoleLog.setFormatter(formatter)
 # add handler to logger
 logger.addHandler(consoleLog)
 
-# get path to hq. it is assumed that this script is in the lib directory of
-# the hq package.
-HQPATH = os.path.normpath( os.path.join( os.path.dirname( os.path.realpath(__file__) ) + '/..') )
+# path to bin files
+BINPATH = "{hqpath}/bin".format( hqpath=os.environ['HQPATH'] )
+# path to config files
+ETCPATH = "{hqpath}/etc".format( hqpath=os.environ['HQPATH'] )
 
-LIBPATH = '%s/lib' % HQPATH		# for hq packages
-BINPATH = '%s/bin' % HQPATH		# for executables
-ETCPATH = '%s/etc' % HQPATH		# for configs
-
-sys.path.insert(0,LIBPATH)
-
-from hQSocket import hQSocket
-from hQServerDetails import hQServerDetails
-import hQUtils
+from hq.lib.hQSocket import hQSocket
+from hq.lib.hQServerDetails import hQServerDetails
+import hq.lib.hQUtils
 
 HOMEDIR = os.environ['HOME']
 USER = pwd.getpwuid(os.getuid())[0]

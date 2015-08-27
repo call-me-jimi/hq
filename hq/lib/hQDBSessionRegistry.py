@@ -12,45 +12,12 @@ import sys
 import ConfigParser
 import sqlalchemy.orm
 
-# get path to hq. it is assumed that this script is in the lib directory of
-# the hq package.
-HQPATH = os.path.normpath( os.path.join( os.path.dirname( os.path.realpath(__file__) ) + '/..' ) )
-
-LIBPATH = '%s/lib' % HQPATH
-
-# include lib path of the hq package to sys.path for loading hq packages
-sys.path.insert(0,LIBPATH)
-
-###### libraries are in the same folder
-#####from DBConfig import DBConfig
-#####
-###### use default config file
-#####etcpath = os.path.normpath( os.path.join( os.path.dirname( os.path.realpath(__file__) ) + '/../etc' ) )
-#####
-###### default config file for database connection
-#####configFileName = "{etcPath}/db.cfg".format(etcPath=etcpath)
-#####
-###### read config file
-#####dbConfig = DBConfig( configFileName=configFileName )
-#####config = dbConfig.config
-#####
-#####databaseDialect = config.get( 'DATABASE', 'database_dialect' )
-#####databaseHost = config.get( 'DATABASE', 'database_host' )
-#####databasePort = config.get( 'DATABASE', 'database_port' )
-#####databaseName = config.get( 'DATABASE', 'database_name' )
-#####databaseUsername = config.get( 'DATABASE', 'database_username' )
-#####databasePassword = config.get( 'DATABASE', 'database_password' )
-#####try:
-#####    echo = config.getboolean( 'DATABASE', 'echo' )
-#####except:
-#####    echo = False
-
 
 # library is in the same folder
-from hQDatabase import Base
+from hq.lib.hQDatabase import Base
 
 # use default config file
-ETCPATH = os.path.normpath( os.path.join( os.path.dirname( os.path.realpath(__file__) ) + '/../etc' ) )
+ETCPATH = "{etcpath}/etc".format( etcpath=os.environ['HQPATH'] )
 
 # default config file for database connection
 configFileName = "{etcPath}/hq-db.cfg".format(etcPath=ETCPATH)

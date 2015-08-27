@@ -6,8 +6,8 @@ import traceback
 from operator import attrgetter
 from collections import defaultdict
 
-from hQDBConnection import hQDBConnection
-import hQDatabase as db
+from hq.lib.hQDBConnection import hQDBConnection
+import hq.lib.hQDatabase as db
 
 class hQJobSchedulerSimple( object ):
     def __init__( self ):

@@ -15,17 +15,15 @@ import traceback
 from pprint import pprint as pp
 
 # import of modules within hq package
-from hQBaseServer import hQBaseServer,hQBaseServerHandler,hQBaseRequestProcessor
-from hQServerDetails import hQServerDetails
-#from hQUserServerDetails import hQUserServerDetails
-from hQDBConnection import hQDBConnection
-from hQCommand import hQCommand
-from hQSocket import hQSocket
-from hQServerProxy import hQServerProxy
+from hq.lib.hQBaseServer import hQBaseServer,hQBaseServerHandler,hQBaseRequestProcessor
+from hq.lib.hQServerDetails import hQServerDetails
+from hq.lib.hQDBConnection import hQDBConnection
+from hq.lib.hQCommand import hQCommand
+from hq.lib.hQSocket import hQSocket
+from hq.lib.hQServerProxy import hQServerProxy
+from hq.lib.daemon import Daemon
+import hq.lib.hQDatabase as db
 
-from daemon import Daemon
-
-import hQDatabase as db
 
 # get stored host and port from taskdispatcher
 hqServerDetails = hQServerDetails('hq-server')

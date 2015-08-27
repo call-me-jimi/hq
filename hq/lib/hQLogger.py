@@ -3,9 +3,8 @@ import os
 import sys
 import logging
 
-# get path to hq.
-# it is assumed that this package is in the lib directory of the hq package
-HQPATH = os.path.normpath( os.path.join( os.path.dirname( os.path.realpath(__file__) ) + '/..') )
+# path to config files
+ETCPATH = "{hqpath}/etc".format( hqpath=os.environ['HQPATH'] )
 
 class hQLogger( object ):
     """! @brief raw implementation for configuring output of logger
@@ -35,7 +34,7 @@ class hQLogger( object ):
         about indication wether message of a particular category is passed to logger
         """
         
-        configFileName = '{hqpath}/etc/hq-logger.cfg'.format(hqpath=HQPATH)
+        configFileName = '{etcpath}/hq-logger.cfg'.format(etcpath=ETCPATH)
         parser = ConfigParser.SafeConfigParser()
 
         if os.path.exists( configFileName ):

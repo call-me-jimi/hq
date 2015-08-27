@@ -9,19 +9,18 @@ import SocketServer
 import traceback
 import re
 
-from hQSocket import hQSocket
-from hQCommand import hQCommand
-from hQLogger import hQLogger, wrapLogger
-import hQUtils
-from hQDBConnection import hQDBConnection
-from hQServerDetails import hQServerDetails
-import hQDatabase as db
+from hq.lib.hQSocket import hQSocket
+from hq.lib.hQCommand import hQCommand
+from hq.lib.hQLogger import hQLogger, wrapLogger
+import hq.lib.hQUtils
+from hq.lib.hQDBConnection import hQDBConnection
+from hq.lib.hQServerDetails import hQServerDetails
+import hq.lib.hQDatabase as db
 
-from daemon import Daemon
+from hq.lib.daemon import Daemon
 
-# get path to hq.
-# it is assumed that this package is in the lib directory of the hq package
-HQPATH = os.path.normpath( os.path.join( os.path.dirname( os.path.realpath(__file__) ) + '/..') )
+# path to config files
+ETCPATH = "{hqpath}/etc".format( hqpath=os.environ['HQPATH'] )
 
 PRINT_STATUS_COUNTER=5
 SERVER_TIMEOUT=3
@@ -72,7 +71,7 @@ class hQBaseServer(SocketServer.ThreadingMixIn, SocketServer.TCPServer, Daemon, 
 
         # read hQ config
         self.config = ConfigParser.ConfigParser()
-        self.config.read( '{hqpath}/etc/hq.cfg'.format(hqpath=HQPATH) )
+        self.config.read( '{etcpath}/hq.cfg'.format(etcpath=ETCPATH) )
 
         # set server time out (time after which self.handle_request returns without a request)
         self.timeout=SERVER_TIMEOUT

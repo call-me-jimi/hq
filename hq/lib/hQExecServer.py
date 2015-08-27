@@ -13,18 +13,17 @@ import json
 import sys
 import traceback
 from pprint import pprint as pp
+import getpass
 
 # import of modules within hq package
-from hQBaseServer import hQBaseServer,hQBaseServerHandler,hQBaseRequestProcessor
-from hQServerDetails import hQServerDetails
-#from hQUserServerDetails import hQUserServerDetails
-from hQDBConnection import hQDBConnection
-from hQCommand import hQCommand
-from hQSocket import hQSocket
+from hq.lib.hQBaseServer import hQBaseServer,hQBaseServerHandler,hQBaseRequestProcessor
+from hq.lib.hQServerDetails import hQServerDetails
+from hq.lib.hQDBConnection import hQDBConnection
+from hq.lib.hQCommand import hQCommand
+from hq.lib.hQSocket import hQSocket
+from hq.lib.daemon import Daemon
+import hq.lib.hQDatabase as db
 
-from daemon import Daemon
-
-import hQDatabase as db
 
 # get stored host and port from hq-user-server
 hqServerDetails = hQServerDetails('hq-user-server')
@@ -32,7 +31,7 @@ hqServerDetails = hQServerDetails('hq-user-server')
 HQU_SERVER_HOST = hqServerDetails.get('host', None)
 HQU_SERVER_PORT = hqServerDetails.get('port', None)
 
-USER = pwd.getpwuid(os.getuid())[0]
+USER = getpass.getuser()
 
 class hQExecServer(hQBaseServer, Daemon):
     server_type ='hq-exec-server'

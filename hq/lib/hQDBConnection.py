@@ -4,17 +4,7 @@ import sys
 from sqlalchemy import create_engine, MetaData
 from sqlalchemy.orm import sessionmaker, scoped_session
 
-# get path to hq. it is assumed that this script is in the lib directory of
-# the hq package.
-HQPATH = os.path.normpath( os.path.join( os.path.dirname( os.path.realpath(__file__) ) + '/..' ) )
-
-LIBPATH = '%s/lib' % HQPATH
-VARPATH = '%s/var' % HQPATH
-
-# include lib path of the hq package to sys.path for loading hq packages
-sys.path.insert(0,LIBPATH)
-
-import hQDBSessionRegistry
+import hq.lib.hQDBSessionRegistry
 
 DBSession = hQDBSessionRegistry.DBSession
 engine = hQDBSessionRegistry.engine

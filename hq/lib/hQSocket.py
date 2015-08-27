@@ -7,10 +7,8 @@ import traceback
 import sys
 import ConfigParser
 
-# get path to hq.
-# it is assumed that this package is in the lib directory of the hq package
-HQPATH = os.path.normpath( os.path.join( os.path.dirname( os.path.realpath(__file__) ) + '/..') )
-
+# path to config files
+ETCPATH = "{hqpath}/etc".format( hqpath=os.environ['HQPATH'] )
 
 class hQSocket( object ):
     """ class for socket communication"""
@@ -28,7 +26,7 @@ class hQSocket( object ):
                  timeout = None):
         # read hQ config
         self.hqConfig = ConfigParser.ConfigParser()
-        self.hqConfig.read( '{hqpath}/etc/hq.cfg'.format(hqpath=HQPATH) )
+        self.hqConfig.read( '{etcpath}/hq.cfg'.format(etcpath=ETCPATH) )
         
         self.socket = sock
         self.logFileIn = logFileIn
