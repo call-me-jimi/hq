@@ -40,6 +40,8 @@ LIBPATH = os.path.normpath( os.path.join( os.path.dirname( os.path.realpath(__fi
 
 sys.path.insert(0,LIBPATH)
 
+from hQPingHost import hQPingHost
+
 class ValidateVerboseMode(argparse.Action):
     def __call__(self, parser, namespace, value, option_string=None):
         #print '{n} -- {v} -- {o}'.format(n=namespace, v=value, o=option_string)
@@ -263,7 +265,14 @@ if __name__ == '__main__':
                             defaultStatus = { 'active': False }
                             
                             # columns: short_name, full_name, total_number_slots, max_number_occupied_slots, additional_info, allow_info_server, info_server_port, active
-                            settings = dict( filter( lambda s: s[1]!="", zip( ["short_name", "full_name", "total_number_slots", "max_number_occupied_slots", "additional_info", "allow_info_server", "info_server_port", "active"], lineSplitted ) ) )
+                            settings = dict( filter( lambda s: s[1]!="", zip( ["short_name",
+                                                                               "full_name",
+                                                                               "total_number_slots",
+                                                                               "max_number_occupied_slots",
+                                                                               "additional_info",
+                                                                               "allow_info_server",
+                                                                               "info_server_port",
+                                                                               "active"], lineSplitted ) ) )
 
                             # get host setting using dict comprehension, prefer settings from settings file
                             # automatically cast value to type of value given in defaultSettings
@@ -279,9 +288,20 @@ if __name__ == '__main__':
                                 # create entry in database
                                 host = db.Host( **hostSettings )
 
+                                ph = hQPingHost( hostSettings['full_name'] )
+                                ph.start()
+                                ph.join()
+
+                                reachable = False
+                                if ph.status[1]>0:	# ph.status: (transmitted,received)
+                                     # successful ping
+                                     reachable = True
+
+
                                 # create HostSummaryInstance
                                 hostSummary = db.HostSummary( host=host,
-                                                              available=hostStatus['active'] )
+                                                              available=hostStatus['active'],
+                                                              reachable=reachable )
 
                                 con.introduce( host, hostSummary )
                 con.commit()
