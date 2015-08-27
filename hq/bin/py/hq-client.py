@@ -30,18 +30,9 @@ consoleLog.setFormatter(formatter)
 # add handler to logger
 logger.addHandler(consoleLog)
 
-# get path to hq. it is assumed that this script is in the bin/py directory of
-# the hq package.
-HQPATH = os.path.normpath( os.path.join( os.path.dirname( os.path.realpath(__file__) ) + '/../..') )
-
-LIBPATH  = '%s/lib' % HQPATH		# for hq packages
-
-# include lib path of the hq package to sys.path for loading hq packages
-sys.path.insert(0,LIBPATH)
-
-from hQSocket import hQSocket
-from hQServerProxy import hQServerProxy
-from hQServerDetails import hQServerDetails
+from hq.lib.hQSocket import hQSocket
+from hq.lib.hQServerProxy import hQServerProxy
+from hq.lib.hQServerDetails import hQServerDetails
 
 # get stored host and port from taskdispatcher
 hqServerDetails = hQServerDetails('hq-server')

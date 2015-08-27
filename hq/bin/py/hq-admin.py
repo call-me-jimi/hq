@@ -30,24 +30,14 @@ consoleLog.setFormatter(formatter)
 # add handler to logger
 logger.addHandler(consoleLog)
 
-# get path to hq. it is assumed that this script is in the lib directory of
-# the hq package.
-HQPATH = os.path.normpath( os.path.join( os.path.dirname( os.path.realpath(__file__) ) + '/../..') )
-
-LIBPATH  = '%s/lib' % HQPATH	# for hq packages
-
-sys.path.insert(0,LIBPATH)
-
-from hQSocket import hQSocket
-from hQServerDetails import hQServerDetails
+from hq.lib.hQSocket import hQSocket
+from hq.lib.hQServerDetails import hQServerDetails
 
 # get stored host and port from taskdispatcher
 hqDetails = hQServerDetails('hq-server')
 
 hqHost = hqDetails.get('host', None)
 hqPort = hqDetails.get('port', None)
-useSSLConnection = hqDetails.get('sslconnection', False)
-
 
 # create tuple like object with field host and port
 HostAndPort = collections.namedtuple( 'HostAndPort', ['host', 'port'])

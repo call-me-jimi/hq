@@ -19,6 +19,7 @@ import textwrap
 import time
 from pprint import pprint as pp
 from copy import copy
+import getpass
 
 # logging
 import logging
@@ -36,27 +37,12 @@ consoleLog.setFormatter(formatter)
 # add handler to logger
 logger.addHandler(consoleLog)
 
-# get path to hq.
-# it is assumed that this package is in the bin/py directory of the hq package
-HQPATH = os.path.normpath( os.path.join( os.path.dirname( os.path.realpath(__file__) ) + '/../..' ) )
-
-ETCPATH  = '%s/etc' % HQPATH		# for configuration files
-LIBPATH  = '%s/lib' % HQPATH		# for hSocket
-ARPATH  = '%s/var' % HQPATH		# for info file
-
-# include lib path of the hq package to sys.path for loading hq packages
-sys.path.insert(0,LIBPATH)
-
-from hQUtils import SmartFormatter
-
-
 HOMEDIR = os.environ['HOME']
-USER = pwd.getpwuid(os.getuid())[0]
 
-# make sure that libraries can be found, i.e., set PYTHONPATH appropriately
-from hQSocket import hQSocket
-from hQServerProxy import hQServerProxy
-from hQServerDetails import hQServerDetails
+from hq.lib.hQUtils import SmartFormatter
+from hq.lib.hQSocket import hQSocket
+from hq.lib.hQServerProxy import hQServerProxy
+from hq.lib.hQServerDetails import hQServerDetails
 
 # get stored host and port from taskdispatcher
 hqUserServerDetails = hQServerDetails('hq-user-server')
@@ -175,12 +161,8 @@ if __name__ == '__main__':
     
     args = parser.parse_args()
 
-    #certfile = "%s/.taskmanager/%s.crt" % (homedir,user)
-    #keyfile = "%s/.taskmanager/%s.key" % (homedir,user)
-    #ca_certs = "%s/.taskmanager/ca_certs.%s.crt" % (homedir,user)
-
     # create HOMEDIR/.hq directory
-    hqDir = "{home}/.hq".format( home=os.environ['HOME'] )
+    hqDir = "{home}/.hq".format( home=HOMEDIR )
 
     if not os.path.exists( hqDir ):
         os.makedirs( hqDir )
@@ -199,31 +181,11 @@ if __name__ == '__main__':
         sys.stderr.write("Could not start a hq-user-server!\n")
         sys.exit(-1)
 
-    #TMS.sendAndRecv("setpersistent")
-
     requests = []
     
     # assembl requests
     if args.showStatus:
         requests = ['status']
-        
-    #elif options.killTMS:
-    #    jobs = ['shutdown']
-    #elif options.jobID:
-    #    jobs = ['lsjobinfo:%s' % options.jobID]
-    #elif options.matchString:
-    #    jobs = ['getmatchingjobs:%s' % options.matchString]
-    #elif options.matchStringForKill:
-    #    mStringSplit = options.matchStringForKill.split(":")
-    #    mString  = mStringSplit[0]
-    #    userName = ""
-    #    if len(mStringSplit)==2:
-    #        userName = mStringSplit[1]
-    #    jobs = ['killmatchingjobs:%s:%s' % (mString,userName)]
-    #elif options.jobIDForKill:
-    #    jobs = ['killjob:%s' % options.jobIDForKill]
-    #elif options.clusterOverview:
-    #    jobs = ['lsactivecluster']
     else:
         if args.jobsFile:
             # send several jobs at once

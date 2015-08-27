@@ -32,15 +32,10 @@ consoleLog.setFormatter(formatter)
 # add handler to logger
 logger.addHandler(consoleLog)
 
+# path to config files
+ETCPATH = "{hqpath}/etc".format( hqpath=os.environ['HQPATH'] )
 
-# get path to config file. it is assumed that this progran is in the bin/py directory of
-# the package hierarchy.
-ETCPATH = os.path.normpath( os.path.join( os.path.dirname( os.path.realpath(__file__) ) + '/../../etc' ) )
-LIBPATH = os.path.normpath( os.path.join( os.path.dirname( os.path.realpath(__file__) ) + '/../../lib' ) )
-
-sys.path.insert(0,LIBPATH)
-
-from hQPingHost import hQPingHost
+from hq.lib.hQUtils import hQPingHost
 
 class ValidateVerboseMode(argparse.Action):
     def __call__(self, parser, namespace, value, option_string=None):
@@ -59,14 +54,6 @@ if __name__ == '__main__':
         usage="%(prog)s [-h --help] [options]",
         description="Connect to a database",
         epilog='Written by Hendrik.' )
-
-    ##parser.add_argument('-c', '--config-file',
-    ##                    nargs = 1,
-    ##                    metavar = "FILE",
-    ##                    dest = 'configFileName',
-    ##                    default = defaultConfigFileName,
-    ##                    help = 'Read a different config file. Default: {f}'.format(f=defaultConfigFileName)
-    ##                    )
 
     parser.add_argument('-C', '--create-tables',
                         dest = 'createTables',
@@ -141,10 +128,6 @@ if __name__ == '__main__':
         # This will not re-create tables that already exist.
 
         logger.info( "Create tables in database" )
-
-        #from DBConnection import DBConnection
-        #session = DBConnection()
-        #session.create_all_tables()
 
         # import registry to define another engine with echo=True
         import hQDBSessionRegistry as dbSessionReg
