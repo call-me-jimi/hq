@@ -13,8 +13,8 @@ import ConfigParser
 import sqlalchemy.orm
 
 
-# library is in the same folder
-from hq.lib.hQDatabase import Base
+# import hq libraries
+from lib.hQDatabase import Base
 
 # use default config file
 ETCPATH = "{etcpath}/etc".format( etcpath=os.environ['HQPATH'] )

@@ -8,6 +8,7 @@ import subprocess
 import re
 import ConfigParser
 import socket
+import getpass
 
 # logging
 import sys
@@ -26,17 +27,18 @@ consoleLog.setFormatter(formatter)
 # add handler to logger
 logger.addHandler(consoleLog)
 
-# path to bin files
+# path to bin directory
 BINPATH = "{hqpath}/bin".format( hqpath=os.environ['HQPATH'] )
 # path to config files
 ETCPATH = "{hqpath}/etc".format( hqpath=os.environ['HQPATH'] )
 
-from hq.lib.hQSocket import hQSocket
-from hq.lib.hQServerDetails import hQServerDetails
-import hq.lib.hQUtils
+# import hq libraries
+from lib.hQSocket import hQSocket
+from lib.hQServerDetails import hQServerDetails
+import lib.hQUtils as hQUtils
 
 HOMEDIR = os.environ['HOME']
-USER = pwd.getpwuid(os.getuid())[0]
+USER = getpass.getuser()
 
 class hQServerProxy(object):
     """! @brief Class for establishing a running Server, such as hq-user-server or hq-exec-server and connect to it"""

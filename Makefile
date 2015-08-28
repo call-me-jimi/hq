@@ -9,7 +9,8 @@ ve:
 rc:
 	# generate a source file
 	# necessary enironmental variables are set within this source files
-	echo 'export HQPATH=$(HQPATH)/hq'  > .hqrc
+	echo 'export HQPACKAGE=$(HQPATH)'  > .hqrc
+	echo 'export HQPATH=$(HQPATH)/hq'  >> .hqrc
 	echo 'export HQ_VE_PATH=$(HQPATH)/hqVE'  >> .hqrc
 	echo ''  >> .hqrc
 	echo 'source $(HQPATH)/hqVE/bin/activate' >> .hqrc

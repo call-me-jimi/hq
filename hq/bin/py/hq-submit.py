@@ -39,10 +39,11 @@ logger.addHandler(consoleLog)
 
 HOMEDIR = os.environ['HOME']
 
-from hq.lib.hQUtils import SmartFormatter
-from hq.lib.hQSocket import hQSocket
-from hq.lib.hQServerProxy import hQServerProxy
-from hq.lib.hQServerDetails import hQServerDetails
+# import hq libraries
+from lib.hQUtils import SmartFormatter
+from lib.hQSocket import hQSocket
+from lib.hQServerProxy import hQServerProxy
+from lib.hQServerDetails import hQServerDetails
 
 # get stored host and port from taskdispatcher
 hqUserServerDetails = hQServerDetails('hq-user-server')

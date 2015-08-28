@@ -11,14 +11,15 @@ import sys
 from collections import defaultdict
 from pprint import pprint as pp
 
-from hq.lib.hQBaseServer import hQBaseServer,hQBaseServerHandler,hQBaseRequestProcessor
-from hq.lib.hQServerDetails import hQServerDetails
-from hq.lib.hQDBConnection import hQDBConnection
-from hq.lib.hQSocket import hQSocket
-from hq.lib.hQCommand import hQCommand
-from hq.lib.hQUtils import hQPingHost, hQHostLoad
-from hq.lib.hQJobSchedulerSimple import hQJobSchedulerSimple
-import hq.lib.hQDatabase as db
+# import hq libraries
+from lib.hQBaseServer import hQBaseServer,hQBaseServerHandler,hQBaseRequestProcessor
+from lib.hQServerDetails import hQServerDetails
+from lib.hQDBConnection import hQDBConnection
+from lib.hQSocket import hQSocket
+from lib.hQCommand import hQCommand
+from lib.hQUtils import hQPingHost, hQHostLoad
+from lib.hQJobSchedulerSimple import hQJobSchedulerSimple
+import lib.hQDatabase as db
 
 class hQServer(hQBaseServer):
     server_type ='hq-server'

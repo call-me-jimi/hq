@@ -14,18 +14,18 @@ from collections import defaultdict
 import traceback
 from pprint import pprint as pp
 
-# import of modules within hq package
-from hq.lib.hQBaseServer import hQBaseServer,hQBaseServerHandler,hQBaseRequestProcessor
-from hq.lib.hQServerDetails import hQServerDetails
-from hq.lib.hQDBConnection import hQDBConnection
-from hq.lib.hQCommand import hQCommand
-from hq.lib.hQSocket import hQSocket
-from hq.lib.hQServerProxy import hQServerProxy
-from hq.lib.daemon import Daemon
-import hq.lib.hQDatabase as db
+# import hq libraries
+from lib.hQBaseServer import hQBaseServer,hQBaseServerHandler,hQBaseRequestProcessor
+from lib.hQServerDetails import hQServerDetails
+from lib.hQDBConnection import hQDBConnection
+from lib.hQCommand import hQCommand
+from lib.hQSocket import hQSocket
+from lib.hQServerProxy import hQServerProxy
+from lib.daemon import Daemon
+import lib.hQDatabase as db
 
 
-# get stored host and port from taskdispatcher
+# get stored host and port from the main server
 hqServerDetails = hQServerDetails('hq-server')
 
 HQ_SERVER_HOST = hqServerDetails.get('host', None)

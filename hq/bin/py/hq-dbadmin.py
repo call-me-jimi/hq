@@ -35,7 +35,8 @@ logger.addHandler(consoleLog)
 # path to config files
 ETCPATH = "{hqpath}/etc".format( hqpath=os.environ['HQPATH'] )
 
-from hq.lib.hQUtils import hQPingHost
+# import hq libraries
+from lib.hQUtils import hQPingHost
 
 class ValidateVerboseMode(argparse.Action):
     def __call__(self, parser, namespace, value, option_string=None):
