@@ -33,9 +33,9 @@ BINPATH = "{hqpath}/bin".format( hqpath=os.environ['HQPATH'] )
 ETCPATH = "{hqpath}/etc".format( hqpath=os.environ['HQPATH'] )
 
 # import hq libraries
-from lib.hQSocket import hQSocket
-from lib.hQServerDetails import hQServerDetails
-import lib.hQUtils as hQUtils
+from hq.lib.hQSocket import hQSocket
+from hq.lib.hQServerDetails import hQServerDetails
+import hq.lib.hQUtils as hQUtils
 
 HOMEDIR = os.environ['HOME']
 USER = getpass.getuser()
@@ -54,6 +54,7 @@ class hQServerProxy(object):
         
         """
         self.user = USER
+        self.host = host
         self.serverType = serverType
         self.logFile = logFile
         self.verboseMode = verboseMode
@@ -86,14 +87,17 @@ class hQServerProxy(object):
 
         # get stored server details
         hqServerDetails = hQServerDetails( self.serverType )
-
+        
         logger.info( "read config file {f} for hq-{serverType}.".format( f=hqServerDetails.cfgFile,
                                                                          serverType=self.serverType) )
+        if not self.host:
+            # get host from config file or use current host
+            self.host = hqServerDetails.get('host', host if host else os.uname()[1])
 
-        self.host = hqServerDetails.get('host', host if host else os.uname()[1])
+        # get port from config file or get default port. add 1 to default port for exec-server's
         a = 1 if self.serverType=='exec-server' else 0
         self.port = hqServerDetails.get('port', hQUtils.getDefaultPort( self.user, add=a) )
-
+        
 
     def run(self):
         """! @brief check if there is a server running on stored port. if not try to invoke one."""

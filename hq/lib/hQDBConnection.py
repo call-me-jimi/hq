@@ -5,7 +5,7 @@ from sqlalchemy import create_engine, MetaData
 from sqlalchemy.orm import sessionmaker, scoped_session
 
 # import hq libraries
-import lib.hQDBSessionRegistry as hQDBSessionRegistry
+import hq.lib.hQDBSessionRegistry as hQDBSessionRegistry
 
 DBSession = hQDBSessionRegistry.DBSession
 engine = hQDBSessionRegistry.engine

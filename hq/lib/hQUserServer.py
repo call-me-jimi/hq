@@ -15,14 +15,14 @@ import traceback
 from pprint import pprint as pp
 
 # import hq libraries
-from lib.hQBaseServer import hQBaseServer,hQBaseServerHandler,hQBaseRequestProcessor
-from lib.hQServerDetails import hQServerDetails
-from lib.hQDBConnection import hQDBConnection
-from lib.hQCommand import hQCommand
-from lib.hQSocket import hQSocket
-from lib.hQServerProxy import hQServerProxy
-from lib.daemon import Daemon
-import lib.hQDatabase as db
+from hq.lib.hQBaseServer import hQBaseServer,hQBaseServerHandler,hQBaseRequestProcessor
+from hq.lib.hQServerDetails import hQServerDetails
+from hq.lib.hQDBConnection import hQDBConnection
+from hq.lib.hQCommand import hQCommand
+from hq.lib.hQSocket import hQSocket
+from hq.lib.hQServerProxy import hQServerProxy
+from hq.lib.daemon import Daemon
+import hq.lib.hQDatabase as db
 
 
 # get stored host and port from the main server
@@ -228,10 +228,10 @@ class hQUserServer(hQBaseServer, Daemon):
         
         if host_id not in self.exec_servers or not self.exec_servers[ host_id ]:
             # create a server proxy for hq-exec-server
-
             for cnt,delay in enumerate([0,2,5]):
-                logger( "sleep for {t}s".format(t=delay) )
-                sleep( delay )
+                if delay:
+                    logger( "sleep for {t}s".format(t=delay) )
+                    sleep( delay )
             
                 logger( "{c}. attempt to get exec server proxy for host {h}".format( c=cnt+1,
                                                                                      h=host_name ),
@@ -544,9 +544,7 @@ class hQUserServerRequestProcessor( hQBaseRequestProcessor ):
                          'jobs': [<JOB.id>, ...], ... }
         """
 
-        #jobs = json.loads( json_str )
         jobs = json.loads( json_str )
-
         failed = self._send_jobs( jobs )
 
         if failed:
@@ -572,7 +570,7 @@ class hQUserServerRequestProcessor( hQBaseRequestProcessor ):
                          'host_full_name': <string>,
                          'jobs': [<JOB.id>, ...], ... }
         """
-        
+
         failed = []
         for host_id in jobs:
             host_name = jobs[ host_id ]['host_full_name']
@@ -582,8 +580,8 @@ class hQUserServerRequestProcessor( hQBaseRequestProcessor ):
                                                       logger=self.writeLog )
 
             if ExecServer:
-                self.writeLog( "send jobs to exec server on {h}:{p}".format(h=ExecServer.host,
-                                                                             p=ExecServer.port),
+                self.writeLog( "send jobs to exec server on {h}:{p}".format( h=ExecServer.host,
+                                                                             p=ExecServer.port ),
                                logCategory="debug" )
                 for job_id in jobs[ host_id ]['jobs']:
                     response = ExecServer.sendAndClose( "run:{j}".format(j=job_id) )

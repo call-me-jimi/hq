@@ -17,8 +17,8 @@ import pwd
 import getpass
 
 # import hq libraries
-from lib.hQUserServer import hQUserServer
-import lib.hQUtils as hQUtils
+from hq.lib.hQUserServer import hQUserServer
+import hq.lib.hQUtils as hQUtils
 
 USER = getpass.getuser()
 

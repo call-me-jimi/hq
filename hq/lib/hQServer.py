@@ -12,14 +12,14 @@ from collections import defaultdict
 from pprint import pprint as pp
 
 # import hq libraries
-from lib.hQBaseServer import hQBaseServer,hQBaseServerHandler,hQBaseRequestProcessor
-from lib.hQServerDetails import hQServerDetails
-from lib.hQDBConnection import hQDBConnection
-from lib.hQSocket import hQSocket
-from lib.hQCommand import hQCommand
-from lib.hQUtils import hQPingHost, hQHostLoad
-from lib.hQJobSchedulerSimple import hQJobSchedulerSimple
-import lib.hQDatabase as db
+from hq.lib.hQBaseServer import hQBaseServer,hQBaseServerHandler,hQBaseRequestProcessor
+from hq.lib.hQServerDetails import hQServerDetails
+from hq.lib.hQDBConnection import hQDBConnection
+from hq.lib.hQSocket import hQSocket
+from hq.lib.hQCommand import hQCommand
+from hq.lib.hQUtils import hQPingHost, hQHostLoad
+from hq.lib.hQJobSchedulerSimple import hQJobSchedulerSimple
+import hq.lib.hQDatabase as db
 
 class hQServer(hQBaseServer):
     server_type ='hq-server'
@@ -281,7 +281,7 @@ class hQServer(hQBaseServer):
                         dbconnection.commit()
 
                         cmd = 'run:{l}'.format( l=json.dumps( jobsGroupedByHost ) )
-                        
+
                         self.send_to_user( cmd, user, dbconnection )
                         
                 t2 = datetime.now()
@@ -554,7 +554,6 @@ class hQServer(hQBaseServer):
     def send_to_user( self, cmd, user, con ):
         """! @brief send command to user """
         try:
-            # send jobID to tms
             sock = hQSocket( host=user.hq_user_server_host,
                              port=user.hq_user_server_port,
                              catchErrors=False)

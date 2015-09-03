@@ -16,13 +16,13 @@ from pprint import pprint as pp
 import getpass
 
 # import hq libraries
-from lib.hQBaseServer import hQBaseServer,hQBaseServerHandler,hQBaseRequestProcessor
-from lib.hQServerDetails import hQServerDetails
-from lib.hQDBConnection import hQDBConnection
-from lib.hQCommand import hQCommand
-from lib.hQSocket import hQSocket
-from lib.daemon import Daemon
-import lib.hQDatabase as db
+from hq.lib.hQBaseServer import hQBaseServer,hQBaseServerHandler,hQBaseRequestProcessor
+from hq.lib.hQServerDetails import hQServerDetails
+from hq.lib.hQDBConnection import hQDBConnection
+from hq.lib.hQCommand import hQCommand
+from hq.lib.hQSocket import hQSocket
+from hq.lib.daemon import Daemon
+import hq.lib.hQDatabase as db
 
 
 # get stored host and port from hq-user-server

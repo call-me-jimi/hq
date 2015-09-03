@@ -10,14 +10,14 @@ import traceback
 import re
 
 # import hq libraries
-from hQSocket import hQSocket
-from hQCommand import hQCommand
-from hQLogger import hQLogger, wrapLogger
-from hQDBConnection import hQDBConnection
-from hQServerDetails import hQServerDetails
-from daemon import Daemon
-import hQUtils as hQUtils
-import hQDatabase as db
+from hq.lib.hQSocket import hQSocket
+from hq.lib.hQCommand import hQCommand
+from hq.lib.hQLogger import hQLogger, wrapLogger
+from hq.lib.hQDBConnection import hQDBConnection
+from hq.lib.hQServerDetails import hQServerDetails
+from hq.lib.daemon import Daemon
+import hq.lib.hQUtils as hQUtils
+import hq.lib.hQDatabase as db
 
 # path to config files
 ETCPATH = "{hqpath}/etc".format( hqpath=os.environ['HQPATH'] )

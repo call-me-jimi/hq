@@ -14,7 +14,7 @@ import sqlalchemy.orm
 
 
 # import hq libraries
-from lib.hQDatabase import Base
+from hq.lib.hQDatabase import Base
 
 # use default config file
 ETCPATH = "{etcpath}/etc".format( etcpath=os.environ['HQPATH'] )

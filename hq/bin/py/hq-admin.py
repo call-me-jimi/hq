@@ -31,8 +31,8 @@ consoleLog.setFormatter(formatter)
 logger.addHandler(consoleLog)
 
 # import hq libraries
-from lib.hQSocket import hQSocket
-from lib.hQServerDetails import hQServerDetails
+from hq.lib.hQSocket import hQSocket
+from hq.lib.hQServerDetails import hQServerDetails
 
 # get stored host and port from taskdispatcher
 hqDetails = hQServerDetails('hq-server')
