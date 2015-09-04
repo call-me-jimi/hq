@@ -65,7 +65,7 @@ class hQServerProxy(object):
 
         #self.homedir = os.environ['HOME']
 
-        if verboseMode:
+        if self.verboseMode:
             logger.setLevel( logging.DEBUG )
 
         logger.info( 'server proxy for hq-{s}'.format(s=self.serverType) )
@@ -278,16 +278,6 @@ class hQServerProxy(object):
     def send(self, command):
         logger.info( "send request: {c}".format(c=command) )
 
-        #if createNewSocket:
-        #    logger.info( "create new socket" )
-        #    
-        #    try:
-        #        self.clientSock = hQSocket( host=self.host,
-        #                                    port=self.port,
-        #                                    catchErrors=False )
-        #    except socket.error, msg:
-        #        return msg
-
         try:
             self.clientSock.send(command)
         except:
@@ -300,13 +290,19 @@ class hQServerProxy(object):
         
         return True
 
+
     def recv(self):
-        recv = self.clientSock.recv()
+        try:
+            recv = self.clientSock.recv()
 
-        recvShort = recv.replace('\n', '\\')[:30]
-        logger.info( "response from server: {r}{dots}".format(r=recvShort, dots="..." if len(recv)>30 else "" ) )
+            recvShort = recv.replace('\n', '\\')[:30]
+            logger.info( "response from server: {r}{dots}".format(r=recvShort, dots="..." if len(recv)>30 else "" ) )
 
-        return recv
+            self.close()
+            return recv
+        except socket.error,msg:
+            return msg.message
+
 
     def close(self):
         """ close connection
@@ -319,40 +315,42 @@ class hQServerProxy(object):
         self.clientSock.shutdown(socket.SHUT_RDWR)
         self.openConnection = False
 
+
     def sendAndRecv(self,request):
         """ send request to server and receive response"""
         self.send(request)
 
         return self.recv()
 
-    def sendAndClose(self,request):
-        """ send request to server and close connection"""
-        try:
-            self.send(request)
-            self.close()
-        except socket.error,msg:
-            self.openConnection = False
-            sys.stderr.write("SOCKET ERROR: % s\n" % msg)
-        except:
-            self.openConnection = False
-            sys.stderr.write("UNKNOWN ERROR: % s\n" % sys.exc_info()[0])
-            traceback.print_exc(file=sys.stderr)
 
-
-    def sendAndRecvAndClose(self,request):
-        """ send request to server, receive response and close connection"""
-        try:
-            self.send(request)
-            response = self.recv()
-            self.close()
-            return response
-        except socket.error,msg:
-            self.openConnection = False
-            sys.stderr.write("SOCKET ERROR: % s\n" % msg)
-        except:
-            self.openConnection = False
-            sys.stderr.write("UNKNOWN ERROR: % s\n" % sys.exc_info()[0])
-            traceback.print_exc(file=sys.stderr)
+    ##def sendAndClose(self,request):
+    ##    """ send request to server and close connection"""
+    ##    try:
+    ##        self.send(request)
+    ##        self.close()
+    ##    except socket.error,msg:
+    ##        self.openConnection = False
+    ##        sys.stderr.write("SOCKET ERROR: % s\n" % msg)
+    ##    except:
+    ##        self.openConnection = False
+    ##        sys.stderr.write("UNKNOWN ERROR: % s\n" % sys.exc_info()[0])
+    ##        traceback.print_exc(file=sys.stderr)
+    ##
+    ##
+    ##def sendAndRecvAndClose(self,request):
+    ##    """ send request to server, receive response and close connection"""
+    ##    try:
+    ##        self.send(request)
+    ##        response = self.recv()
+    ##        self.close()
+    ##        return response
+    ##    except socket.error,msg:
+    ##        self.openConnection = False
+    ##        sys.stderr.write("SOCKET ERROR: % s\n" % msg)
+    ##    except:
+    ##        self.openConnection = False
+    ##        sys.stderr.write("UNKNOWN ERROR: % s\n" % sys.exc_info()[0])
+    ##        traceback.print_exc(file=sys.stderr)
 
     def shutdown( self ):
         """! brief shutdown server """

@@ -236,16 +236,16 @@ if __name__ == '__main__':
                         traceback.print_exc(file=sys.stdout)
                         continue
                     
-                # add maximal 100 jobs to a single request
-                if idx>0 and idx % 100 == 1:
-                    # add jobs
-                    jsonObj = json.dumps( jobs )
-                    requests.append( 'addjobs:%s' % jsonObj )
-                    jobs = []
+                    # add maximal 100 jobs in a single request
+                    if idx>0 and idx % 99 == 0:
+                        # add jobs
+                        jsonObj = json.dumps( jobs )
+                        requests.append( 'addjobs:%s' % jsonObj )
+                        jobs = []
 
-                if jobs:
-                    jsonObj = json.dumps( jobs )
-                    requests.append( 'addjobs:%s' % jsonObj )
+            if jobs:
+                jsonObj = json.dumps( jobs )
+                requests.append( 'addjobs:%s' % jsonObj )
 
         else:
             # send a single job

@@ -958,7 +958,7 @@ class hQRequestProcessor( hQBaseRequestProcessor ):
         jobIDs = []
         
         self.writeLog( "Add {n} job{s} ...".format(n=numJobs,
-                                                   s='a' if numJobs>1 else '' ),
+                                                   s='s' if numJobs>1 else '' ),
                      logCategory='system' )
 
         # iterate over all jobs
