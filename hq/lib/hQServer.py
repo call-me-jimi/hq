@@ -11,6 +11,7 @@ import sys
 from collections import defaultdict
 from pprint import pprint as pp
 
+# import hq libraries
 from hq.lib.hQBaseServer import hQBaseServer,hQBaseServerHandler,hQBaseRequestProcessor
 from hq.lib.hQServerDetails import hQServerDetails
 from hq.lib.hQDBConnection import hQDBConnection
@@ -280,7 +281,7 @@ class hQServer(hQBaseServer):
                         dbconnection.commit()
 
                         cmd = 'run:{l}'.format( l=json.dumps( jobsGroupedByHost ) )
-                        
+
                         self.send_to_user( cmd, user, dbconnection )
                         
                 t2 = datetime.now()
@@ -553,7 +554,6 @@ class hQServer(hQBaseServer):
     def send_to_user( self, cmd, user, con ):
         """! @brief send command to user """
         try:
-            # send jobID to tms
             sock = hQSocket( host=user.hq_user_server_host,
                              port=user.hq_user_server_port,
                              catchErrors=False)
@@ -958,7 +958,7 @@ class hQRequestProcessor( hQBaseRequestProcessor ):
         jobIDs = []
         
         self.writeLog( "Add {n} job{s} ...".format(n=numJobs,
-                                                   s='a' if numJobs>1 else '' ),
+                                                   s='s' if numJobs>1 else '' ),
                      logCategory='system' )
 
         # iterate over all jobs

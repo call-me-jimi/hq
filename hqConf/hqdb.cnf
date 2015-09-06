@@ -8,7 +8,7 @@ socket = /tmp/mysql.taskmanagerdb.2114.sock
 
 # Remove leading # and set to the amount of RAM for the most important data
 # cache in MySQL. Start at 70% of total RAM for dedicated server, else 10%.
-# innodb_buffer_pool_size = 128M
+innodb_buffer_pool_size = 8192M
 
 # Remove leading # to turn on a very important data integrity option: logging
 # changes to the binary log between backups.
@@ -32,7 +32,7 @@ sql_mode=NO_ENGINE_SUBSTITUTION,STRICT_TRANS_TABLES
 
 # optimizations
 # see: http://blog.jambura.com/2011/09/10/tuning-optimizing-my-cnf-file-for-mysql/
-key_buffer          = 300M
+key_buffer_size     = 300M
 max_allowed_packet  = 16M
 thread_stack        = 128K
 thread_cache_size   = 384

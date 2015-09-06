@@ -9,15 +9,15 @@ import SocketServer
 import traceback
 import re
 
+# import hq libraries
 from hq.lib.hQSocket import hQSocket
 from hq.lib.hQCommand import hQCommand
 from hq.lib.hQLogger import hQLogger, wrapLogger
-import hq.lib.hQUtils
 from hq.lib.hQDBConnection import hQDBConnection
 from hq.lib.hQServerDetails import hQServerDetails
-import hq.lib.hQDatabase as db
-
 from hq.lib.daemon import Daemon
+import hq.lib.hQUtils as hQUtils
+import hq.lib.hQDatabase as db
 
 # path to config files
 ETCPATH = "{hqpath}/etc".format( hqpath=os.environ['HQPATH'] )
@@ -355,10 +355,10 @@ class hQBaseRequestProcessor(object):
                                            regExp = '^ping$',
                                            help = "return 'pong'",
                                            fct = self.process_ping )
-        self.commands["DETAILS"] = hQCommand( name = "details",
-                                             regExp = "^details$",
-                                             help = "return details about server",
-                                             fct = self.process_details )
+        self.commands["INFO"] = hQCommand( name = "info",
+                                           regExp = "^info$",
+                                           help = "return some information about server",
+                                           fct = self.process_details )
         self.commands["STATUS"] = hQCommand( name = "status",
                                              regExp = "^status$",
                                              help = "print status of server",

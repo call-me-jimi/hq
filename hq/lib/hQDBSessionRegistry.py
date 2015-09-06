@@ -13,7 +13,7 @@ import ConfigParser
 import sqlalchemy.orm
 
 
-# library is in the same folder
+# import hq libraries
 from hq.lib.hQDatabase import Base
 
 # use default config file

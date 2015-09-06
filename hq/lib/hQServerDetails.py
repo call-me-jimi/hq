@@ -2,7 +2,8 @@ import os
 import ConfigParser
 import getpass
 
-import hq.lib.hQUtils
+# import hq libraries
+import hq.lib.hQUtils as hQUtils
 
 class hQServerDetails(object):
     """! @brief Details about a running hQ server"""
@@ -44,7 +45,8 @@ class hQServerDetails(object):
 
             # set default
             self.hQServerDetails['host'] = os.uname()[1]
-            self.hQServerDetails['port'] = hQUtils.getDefaultPort( getpass.getuser() )
+            self.hQServerDetails['port'] = hQUtils.getDefaultPort( user=getpass.getuser(),
+                                                                   add=1 if self.server_type=='exec-server' else 0 )
 
             
     def get( self, key, defaultValue=None):

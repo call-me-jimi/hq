@@ -30,6 +30,7 @@ consoleLog.setFormatter(formatter)
 # add handler to logger
 logger.addHandler(consoleLog)
 
+# import hq libraries
 from hq.lib.hQSocket import hQSocket
 from hq.lib.hQServerDetails import hQServerDetails
 

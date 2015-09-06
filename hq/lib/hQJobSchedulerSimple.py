@@ -6,6 +6,7 @@ import traceback
 from operator import attrgetter
 from collections import defaultdict
 
+# import hq libraries
 from hq.lib.hQDBConnection import hQDBConnection
 import hq.lib.hQDatabase as db
 

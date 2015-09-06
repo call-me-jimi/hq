@@ -8,6 +8,7 @@ import subprocess
 import re
 import ConfigParser
 import socket
+import getpass
 
 # logging
 import sys
@@ -26,17 +27,18 @@ consoleLog.setFormatter(formatter)
 # add handler to logger
 logger.addHandler(consoleLog)
 
-# path to bin files
+# path to bin directory
 BINPATH = "{hqpath}/bin".format( hqpath=os.environ['HQPATH'] )
 # path to config files
 ETCPATH = "{hqpath}/etc".format( hqpath=os.environ['HQPATH'] )
 
+# import hq libraries
 from hq.lib.hQSocket import hQSocket
 from hq.lib.hQServerDetails import hQServerDetails
-import hq.lib.hQUtils
+import hq.lib.hQUtils as hQUtils
 
 HOMEDIR = os.environ['HOME']
-USER = pwd.getpwuid(os.getuid())[0]
+USER = getpass.getuser()
 
 class hQServerProxy(object):
     """! @brief Class for establishing a running Server, such as hq-user-server or hq-exec-server and connect to it"""
@@ -52,6 +54,7 @@ class hQServerProxy(object):
         
         """
         self.user = USER
+        self.host = host
         self.serverType = serverType
         self.logFile = logFile
         self.verboseMode = verboseMode
@@ -62,7 +65,7 @@ class hQServerProxy(object):
 
         #self.homedir = os.environ['HOME']
 
-        if verboseMode:
+        if self.verboseMode:
             logger.setLevel( logging.DEBUG )
 
         logger.info( 'server proxy for hq-{s}'.format(s=self.serverType) )
@@ -84,14 +87,17 @@ class hQServerProxy(object):
 
         # get stored server details
         hqServerDetails = hQServerDetails( self.serverType )
-
+        
         logger.info( "read config file {f} for hq-{serverType}.".format( f=hqServerDetails.cfgFile,
                                                                          serverType=self.serverType) )
+        if not self.host:
+            # get host from config file or use current host
+            self.host = hqServerDetails.get('host', host if host else os.uname()[1])
 
-        self.host = hqServerDetails.get('host', host if host else os.uname()[1])
+        # get port from config file or get default port. add 1 to default port for exec-server's
         a = 1 if self.serverType=='exec-server' else 0
         self.port = hqServerDetails.get('port', hQUtils.getDefaultPort( self.user, add=a) )
-
+        
 
     def run(self):
         """! @brief check if there is a server running on stored port. if not try to invoke one."""
@@ -272,16 +278,6 @@ class hQServerProxy(object):
     def send(self, command):
         logger.info( "send request: {c}".format(c=command) )
 
-        #if createNewSocket:
-        #    logger.info( "create new socket" )
-        #    
-        #    try:
-        #        self.clientSock = hQSocket( host=self.host,
-        #                                    port=self.port,
-        #                                    catchErrors=False )
-        #    except socket.error, msg:
-        #        return msg
-
         try:
             self.clientSock.send(command)
         except:
@@ -294,13 +290,19 @@ class hQServerProxy(object):
         
         return True
 
+
     def recv(self):
-        recv = self.clientSock.recv()
+        try:
+            recv = self.clientSock.recv()
 
-        recvShort = recv.replace('\n', '\\')[:30]
-        logger.info( "response from server: {r}{dots}".format(r=recvShort, dots="..." if len(recv)>30 else "" ) )
+            recvShort = recv.replace('\n', '\\')[:30]
+            logger.info( "response from server: {r}{dots}".format(r=recvShort, dots="..." if len(recv)>30 else "" ) )
 
-        return recv
+            self.close()
+            return recv
+        except socket.error,msg:
+            return msg.message
+
 
     def close(self):
         """ close connection
@@ -313,40 +315,42 @@ class hQServerProxy(object):
         self.clientSock.shutdown(socket.SHUT_RDWR)
         self.openConnection = False
 
+
     def sendAndRecv(self,request):
         """ send request to server and receive response"""
         self.send(request)
 
         return self.recv()
 
-    def sendAndClose(self,request):
-        """ send request to server and close connection"""
-        try:
-            self.send(request)
-            self.close()
-        except socket.error,msg:
-            self.openConnection = False
-            sys.stderr.write("SOCKET ERROR: % s\n" % msg)
-        except:
-            self.openConnection = False
-            sys.stderr.write("UNKNOWN ERROR: % s\n" % sys.exc_info()[0])
-            traceback.print_exc(file=sys.stderr)
 
-
-    def sendAndRecvAndClose(self,request):
-        """ send request to server, receive response and close connection"""
-        try:
-            self.send(request)
-            response = self.recv()
-            self.close()
-            return response
-        except socket.error,msg:
-            self.openConnection = False
-            sys.stderr.write("SOCKET ERROR: % s\n" % msg)
-        except:
-            self.openConnection = False
-            sys.stderr.write("UNKNOWN ERROR: % s\n" % sys.exc_info()[0])
-            traceback.print_exc(file=sys.stderr)
+    ##def sendAndClose(self,request):
+    ##    """ send request to server and close connection"""
+    ##    try:
+    ##        self.send(request)
+    ##        self.close()
+    ##    except socket.error,msg:
+    ##        self.openConnection = False
+    ##        sys.stderr.write("SOCKET ERROR: % s\n" % msg)
+    ##    except:
+    ##        self.openConnection = False
+    ##        sys.stderr.write("UNKNOWN ERROR: % s\n" % sys.exc_info()[0])
+    ##        traceback.print_exc(file=sys.stderr)
+    ##
+    ##
+    ##def sendAndRecvAndClose(self,request):
+    ##    """ send request to server, receive response and close connection"""
+    ##    try:
+    ##        self.send(request)
+    ##        response = self.recv()
+    ##        self.close()
+    ##        return response
+    ##    except socket.error,msg:
+    ##        self.openConnection = False
+    ##        sys.stderr.write("SOCKET ERROR: % s\n" % msg)
+    ##    except:
+    ##        self.openConnection = False
+    ##        sys.stderr.write("UNKNOWN ERROR: % s\n" % sys.exc_info()[0])
+    ##        traceback.print_exc(file=sys.stderr)
 
     def shutdown( self ):
         """! brief shutdown server """

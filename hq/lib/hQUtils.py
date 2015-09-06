@@ -272,7 +272,7 @@ def getDefaultPort( user, bias=0, add=0 ):
     """! @brief generate default port number for user
 
     @param user (string) user name
-    @param bias (int) an additional int which is considered dring generation
+    @param bias (int) an additional int which is considered during generation
     @param add (int) add this number to the generated port
     
     the port number should be larger than 1024 and smaller than 65536

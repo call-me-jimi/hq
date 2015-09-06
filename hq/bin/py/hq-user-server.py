@@ -14,20 +14,13 @@ from datetime import datetime
 import socket
 import traceback
 import pwd
+import getpass
 
-# get path to hq.
-# it is assumed that this package is in the bin/py directory of the hq package
-HQPATH = os.path.normpath( os.path.join( os.path.dirname( os.path.realpath(__file__) ) + '/../..' ) )
+# import hq libraries
+from hq.lib.hQUserServer import hQUserServer
+import hq.lib.hQUtils as hQUtils
 
-LIBPATH  = '%s/lib' % HQPATH		# for hq packages
-
-# include lib path of the hq package to sys.path for loading hq packages
-sys.path.insert(0,LIBPATH)
-
-from hQUserServer import hQUserServer
-import hQUtils
-
-user = pwd.getpwuid(os.getuid())[0]
+USER = getpass.getuser()
 
 #####################################
 if __name__ == '__main__':
@@ -35,17 +28,10 @@ if __name__ == '__main__':
     hqHost = os.uname()[1]
     
     ### read hq config file
-    ##hQConfigFileName = "%s/hq-server.cfg" % ETCPATH
-    ##
-    ##hQConfig = ConfigParser.ConfigParser()
-    ##hQConfig.read( hQConfigFileName )
-    ##
-    ##defaultHQPort = hQConfig.getint( 'ADDRESS', 'hQServerPort' )
-    ##    
     defaultErrorLogFile = '/tmp/hq-user-server.{port}.err'
 
     # default port number is constructed from the user name
-    defaultHQPort = hQUtils.getDefaultPort( user )
+    defaultHQPort = hQUtils.getDefaultPort( USER )
 
     textWidth = 80
     parser = argparse.ArgumentParser(

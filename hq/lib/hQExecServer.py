@@ -15,7 +15,7 @@ import traceback
 from pprint import pprint as pp
 import getpass
 
-# import of modules within hq package
+# import hq libraries
 from hq.lib.hQBaseServer import hQBaseServer,hQBaseServerHandler,hQBaseRequestProcessor
 from hq.lib.hQServerDetails import hQServerDetails
 from hq.lib.hQDBConnection import hQDBConnection
