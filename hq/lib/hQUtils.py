@@ -10,6 +10,10 @@ import tempfile
 import subprocess
 import argparse
 import textwrap
+import sqlalchemy
+import sqlalchemy.orm
+from sqlalchemy.dialects import mysql
+
 
 def renderHelp(commandNames, commands):
     """! @brief format help for output. loop over each name in commandNames and add formatted help to list
@@ -282,57 +286,6 @@ def getDefaultPort( user, bias=0, add=0 ):
     return defaultPort+add
     
     
-def getDefaultTMMSPort( user ):
-    """! @brief generate default port number for tmms of user
-
-    @param user (string) user name
-    
-    the port number should be larger than 1024 and smaller than 65536
-       1. construct list with ascii code of each letter (uses ord() function), e.g., 'dummy' -> [100, 117, 109, 109, 121]
-       2. calculate sum: ord(1. letter)*2^1 + ord(2. letter)*2^2 + ...
-       3. make sue that sum ist between 10^10 and 10^16
-    """
-    
-    defaultTMMSPort = 2**10 + sum( [ x[0]*2**x[1] for x in zip( [ ord(c) for c in user ], range(1,len(user)+1) ) ] ) % (2**16-2**10)
-
-    return defaultTMMSPort
-    
-    
-
-class TerminateTMMS(Thread):
-    def __init__(self,hostName,tmmsPid,TMS):
-        Thread.__init__(self)
-        self.hostName = hostName		# hostName of TMMS
-        self.tmmsPid = tmmsPid			# pid of TMMS
-
-    def run(self):
-        """ send kill command to tmms and wait """
-        try:
-            # kill TMMS
-            if TMS.verboseMode:
-                sys.stdout.write("  ... %s [%s] send signal SIGINT\n" % (self.hostName,self.tmmsPid))
-                sys.stdout.flush()
-
-            sp = subprocess.Popen(['ssh', '-x', '-a', self.hostName, "kill -s INT %s" % self.tmmsPid])
-            sp.wait()
-
-            if TMS.verboseMode:
-                sys.stdout.write("  ... termination of %s was successful\n" % (self.hostName))
-                sys.stdout.flush()
-
-        except:
-            try:
-                if TMS.verboseMode:
-                    sys.stdout.write("  ... %s [%s] send signal SIGINT\n" % (self.hostName,self.tmmsPid))
-                    sys.stdout.flush()
-
-                sp = subprocess.Popen(['ssh', '-x', '-a', self.hostName, "kill -s INT %s" % self.tmmsPid])
-                sp.wait()
-            except:
-                # do something else?
-                if TMS.verboseMode:
-                    print "... killing of TMMS failed!"
-
 
 class KillJobs(Thread):
     """kill jobs (in thread) with jobIDs by sending request to TMMS and wait"""
@@ -826,3 +779,56 @@ class hProcVersion(Thread):
 
 
         return None
+
+
+def literalquery(statement, dialect=None):
+    """! @brief Generate an SQL expression string with bound parameters rendered inline for the given SQLAlchemy statement.
+
+    WARNING: This method of escaping is insecure, incomplete, and for debugging
+    purposes only. Executing SQL statements with inline-rendered user values is
+    extremely insecure.
+    """
+
+    if isinstance(statement, sqlalchemy.orm.Query):
+        if dialect is None:
+            dialect = statement.session.get_bind(
+                #statement._mapper_zero_or_none()
+                statement._mapper_zero()
+            ).dialect
+        statement = statement.statement
+    if dialect is None:
+        dialect = getattr(statement.bind, 'dialect', None)
+    if dialect is None:
+        dialect = mysql.dialect()
+
+    Compiler = type(statement._compiler(dialect))
+
+    class LiteralCompiler(Compiler):
+        visit_bindparam = Compiler.render_literal_bindparam
+
+        def render_literal_value(self, value, type_):
+            if isin
+        def render_literal_value(self, value, type_):
+            if isinstance(value, (sqlalchemy.Integer, long)):
+                return str(value)
+            elif isinstance(value, sqlalchemy.DateTime):
+                return repr(str(value))
+            else:  # fallback
+                value = super(LiteralCompiler, self).render_literal_value(
+                    value, type_,
+                )
+                if isinstance(value, unicode):
+                    return value.encode('UTF-8')
+                else:
+                    return value
+
+    return LiteralCompiler(dialect, statement)
+
+
+def qprint( query ):
+    """! @brief print literal query.
+    
+    see hQUtils.literalquery
+    """
+
+    print literalquery( query )
