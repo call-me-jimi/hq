@@ -222,3 +222,23 @@ class HostLoad( Base ):
                                                                  l3=self.loadavg_10min,
                                                                  d=str(self.datetime) )
     
+class Reservation( Base ):
+    __tablename__ = 'reservation'
+
+    id = Column( Integer, primary_key=True )
+
+    code = Column( String(8) )
+    datetime = Column( DateTime, default = datetime.datetime.now )
+
+
+class ReservedSlots( Base ):
+    __tablename__ = 'reserved_slots'
+
+    id = Column( Integer, primary_key=True )
+    
+    reservation_id = Column( Integer, ForeignKey( 'reservation.id' ), nullable=False )
+    slots = Column( Integer, nullable=False )
+    host_id = Column( Integer, ForeignKey( 'host.id' ), nullable=False )
+    
+    reservation = relationship( 'Reservation', backref=backref("reserved_slots", cascade="all, delete, delete-orphan") )
+    host = relationship( 'Host', backref=backref("reserved_slots", cascade="all, delete, delete-orphan") )

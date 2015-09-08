@@ -10,6 +10,7 @@ import traceback
 import sys
 from collections import defaultdict
 from pprint import pprint as pp
+import random
 
 # import hq libraries
 from hq.lib.hQBaseServer import hQBaseServer,hQBaseServerHandler,hQBaseRequestProcessor
@@ -17,7 +18,7 @@ from hq.lib.hQServerDetails import hQServerDetails
 from hq.lib.hQDBConnection import hQDBConnection
 from hq.lib.hQSocket import hQSocket
 from hq.lib.hQCommand import hQCommand
-from hq.lib.hQUtils import hQPingHost, hQHostLoad
+from hq.lib.hQUtils import hQPingHost, hQHostLoad, qprint
 from hq.lib.hQJobSchedulerSimple import hQJobSchedulerSimple
 import hq.lib.hQDatabase as db
 
@@ -633,6 +634,10 @@ class hQRequestProcessor( hQBaseRequestProcessor ):
                                                   regExp = "^enableuser:(.*)",
                                                   help = "enable user.",
                                                   fct = self.process_disableuser)
+        self.commands["RESERVE"] = hQCommand( name = "reserve",
+                                              regExp = "^reserve",
+                                              help = "add a reserveration.",
+                                              fct = self.process_reserve)
         self.commands["LSUSERS"] = hQCommand( name = "lsusers",
                                               regExp = "^lsusers$",
                                               help = "return list of users",
@@ -784,6 +789,37 @@ class hQRequestProcessor( hQBaseRequestProcessor ):
         except:
             request.send('failed.')
 
+    def process_reserve( self, request ):
+        """! @brief process 'reserve' command
+        """
+        
+        con = hQDBConnection()
+        query = con.query( db.Reservation, db.Host )\
+                .join( db.ReservedSlots, db.ReservedSlots.reservation_id==db.Reservation.id )\
+                .join( db.Host, db.Host.id==db.ReservedSlots.host_id )\
+                .filter( db.Reservation.code=="21F87F76" )\
+
+        qprint( query )
+        print query.all()
+
+        ##reservation_codes = set(con.query( db.Reservation.code ).all())
+        ##
+        ##while True:
+        ##    new_reservation_code = hex(random.getrandbits(32))[2:-1].upper()
+        ##    if new_reservation_code not in reservation_codes:
+        ##        break
+        ##    
+        ##new_reservation = db.Reservation( code = new_reservation_code )
+        ##con.introduce(new_reservation)
+        ##
+        ##for host in con.query( db.Host ):
+        ##    new_reserved_slots = db.ReservedSlots( reservation=new_reservation,
+        ##                                           slots = 1,
+        ##                                           host = host )
+        ##    con.introduce( new_reserved_slots )
+        ##
+        ##con.commit()
+        
     def process_lsusers( self, request ):
         """ ! @brief process 'lsusers' command
         """
