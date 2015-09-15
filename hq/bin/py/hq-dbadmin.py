@@ -131,7 +131,7 @@ if __name__ == '__main__':
         logger.info( "Create tables in database" )
 
         # import registry to define another engine with echo=True
-        import hQDBSessionRegistry as dbSessionReg
+        import hq.lib.hQDBSessionRegistry as dbSessionReg
         dbSessionReg.init_db( dbSessionReg.get_engine(echo=True) )
         
         logger.info( "done." )
@@ -143,7 +143,7 @@ if __name__ == '__main__':
         if answer=='y':
             logger.info( "Drop tables in database" )
             
-            from hQDBConnection import hQDBConnection
+            from hq.lib.hQDBConnection import hQDBConnection
             
             session = hQDBConnection()
             
@@ -157,8 +157,8 @@ if __name__ == '__main__':
         # This will add standard entries to tables in database
         logger.info( "Add standard entries" )
         
-        from hQDBConnection import hQDBConnection
-        import hQDatabase as db
+        from hq.lib.hQDBConnection import hQDBConnection
+        import hq.lib.hQDatabase as db
 
         con = hQDBConnection()
 

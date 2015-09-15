@@ -221,7 +221,8 @@ class HostLoad( Base ):
                                                                  l2=self.loadavg_5min, 
                                                                  l3=self.loadavg_10min,
                                                                  d=str(self.datetime) )
-    
+# backref:
+#   reserved_slots -> [ ReservedSlots, ... ]
 class Reservation( Base ):
     __tablename__ = 'reservation'
 

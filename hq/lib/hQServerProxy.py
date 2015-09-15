@@ -323,20 +323,20 @@ class hQServerProxy(object):
         return self.recv()
 
 
-    ##def sendAndClose(self,request):
-    ##    """ send request to server and close connection"""
-    ##    try:
-    ##        self.send(request)
-    ##        self.close()
-    ##    except socket.error,msg:
-    ##        self.openConnection = False
-    ##        sys.stderr.write("SOCKET ERROR: % s\n" % msg)
-    ##    except:
-    ##        self.openConnection = False
-    ##        sys.stderr.write("UNKNOWN ERROR: % s\n" % sys.exc_info()[0])
-    ##        traceback.print_exc(file=sys.stderr)
-    ##
-    ##
+    def sendAndClose(self,request):
+        """ send request to server and close connection"""
+        try:
+            self.send(request)
+            self.close()
+        except socket.error,msg:
+            self.openConnection = False
+            sys.stderr.write("SOCKET ERROR: % s\n" % msg)
+        except:
+            self.openConnection = False
+            sys.stderr.write("UNKNOWN ERROR: % s\n" % sys.exc_info()[0])
+            traceback.print_exc(file=sys.stderr)
+    
+    
     ##def sendAndRecvAndClose(self,request):
     ##    """ send request to server, receive response and close connection"""
     ##    try:
