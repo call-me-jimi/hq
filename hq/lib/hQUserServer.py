@@ -349,6 +349,15 @@ class hQUserServerRequestProcessor( hQBaseRequestProcessor ):
                                             arguments = ["job_id"],
                                             help = "return job info about job with given jobID",
                                             fct = self.process_lajob )
+        self.commands["LSGROUPS"] = hQCommand( name = 'lsgroups',
+                                            regExp = 'lsgroups',
+                                            help = "return groups of user",
+                                            fct = self.process_lsgroups )
+        self.commands["LAGROUP"] = hQCommand( name = 'lagroup',
+                                            regExp = 'lagroup:(.*)',
+                                            arguments = ["group_name"],
+                                            help = "return details about group with given group identifier",
+                                            fct = self.process_lagroup )
         self.commands["FINDJOBS"] = hQCommand( name = 'findjobs',
                                                regExp = 'findjobs:(.*)',
                                                arguments = ["match_str"],
@@ -747,6 +756,93 @@ class hQUserServerRequestProcessor( hQBaseRequestProcessor ):
             request.send( response )
         else:
             request.send("unkown job.")
+
+
+    def process_lsgroups( self, request ):
+        """ ! @brief process 'lagroup' command
+        """
+        
+        # connect to database
+        dbconnection = hQDBConnection()
+            
+        groupNames = dbconnection.query( db.Job.group )\
+                     .filter( db.Job.user_id==self.TMS.userID )\
+                     .distinct()\
+                     .all()
+
+        response = ""
+        for groupName, in groupNames:
+            # get all number of jobs for each status type for user
+            counts = dict( dbconnection.query( db.JobStatus.name, func.count('*') ).\
+                           join( db.JobDetails, db.JobDetails.job_status_id==db.JobStatus.id ).\
+                           join( db.Job, db.Job.id==db.JobDetails.job_id ).\
+                           filter( and_(db.Job.user_id==self.TMS.userID, db.Job.group==groupName) ).\
+                           group_by( db.JobStatus.name ).\
+                           all() )
+
+            finished = counts.get('finished',0)
+            all = counts.get('waiting',0) + counts.get('pending',0) + counts.get('running',0) + counts.get('finished',0)
+
+            if all!= 0:
+                progress = 1.0 * finished/all
+
+                response += "{s:>20} : {value}\n".format(s="group", value=groupName )
+                response += "{s:>20} : {value}\n".format(s="waiting jobs", value=counts.get('waiting',0) )
+                response += "{s:>20} : {value}\n".format(s="pending jobs", value=counts.get('pending',0) )
+                response += "{s:>20} : {value}\n".format(s="running jobs", value=counts.get('running',0) )
+                response += "{s:>20} : {value}\n".format(s="finished jobs", value=counts.get('finished',0) )
+                response += "{s:>20} : {value:.2%}\n".format(s="progress", value=progress )
+                response += "\n"
+
+
+        if response:
+            request.send( response )
+        else:
+            request.send( "no groups found" )
+
+
+
+    def process_lagroup( self, request, group_name ):
+        """ ! @brief process 'lagroup' command
+        """
+        
+        # connect to database
+        dbconnection = hQDBConnection()
+            
+        groupName = c.re.match(receivedStr).groups()[0]
+
+        # connect to database
+        dbconnection = hDBConnection()
+
+        # get all number of jobs for each status type for user
+        counts = dict( dbconnection.query( db.JobStatus.name, func.count('*') ).\
+                       join( db.JobDetails, db.JobDetails.job_status_id==db.JobStatus.id ).\
+                       join( db.Job, db.Job.id==db.JobDetails.job_id ).\
+                       filter( and_(db.Job.user_id==self.TMS.userID,
+                                    db.Job.group==groupName) ).\
+                       group_by( db.JobStatus.name ).\
+                       all() )
+
+        finished = counts.get('finished',0)
+        all = counts.get('waiting',0) + counts.get('pending',0) + counts.get('running',0) + counts.get('finished',0)
+
+        if all!= 0:
+            progress = 1.0 * finished/all
+
+            response = ""
+            response += "{s:>20} : {value}\n".format(s="group", value=groupName )
+            response += "{s:>20} : {value}\n".format(s="waiting jobs", value=counts.get('waiting',0) )
+            response += "{s:>20} : {value}\n".format(s="pending jobs", value=counts.get('pending',0) )
+            response += "{s:>20} : {value}\n".format(s="running jobs", value=counts.get('running',0) )
+            response += "{s:>20} : {value}\n".format(s="finished jobs", value=counts.get('finished',0) )
+
+
+            response += "{s:>20} : {value:.2%}\n".format(s="progress", value=progress )
+
+            request.send( response )
+        else:
+            request.send( "group is unknown" )
+
 
 
     def process_findjobs( self, request, match_str ):

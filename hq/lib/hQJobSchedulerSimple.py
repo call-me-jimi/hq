@@ -42,25 +42,27 @@ class hQJobSchedulerSimple( object ):
         # get newly occupied slots grouped by host id
         newlyOccupiedSlots = defaultdict( int )
 
-        # get next waiting job in queue
-        self.logFct( "   get maximal {n} waiting jobs ...".format( n=numJobs ),
+        # get next waiting jobs in queue
+        self.logFct( "   get {n} waiting jobs ...".format( n=numJobs ),
                      logCategory="job_scheduler" )
         
         if excludedJobIDs:
-            jobs = dbconnection.query( db.WaitingJob ).\
-                   join( db.User ).\
-                   join( db.Job ).\
-                   filter( db.User.enabled==True ).\
-                   filter( not_(db.Job.id.in_(excludedJobIDs) ) ).\
-                   order_by( db.WaitingJob.priorityValue ).\
-                   limit( numJobs ).all()
+            jobs = dbconnection.query( db.WaitingJob )\
+                   .join( db.User )\
+                   .join( db.Job )\
+                   .filter( db.User.enabled==True )\
+                   .filter( not_(db.Job.id.in_(excludedJobIDs) ) )\
+                   .order_by( db.WaitingJob.priorityValue )\
+                   .limit( numJobs )\
+                   .all()
             
         else:
-            jobs = dbconnection.query( db.WaitingJob ).\
-                   join( db.User ).\
-                   filter( db.User.enabled==True ).\
-                   order_by( db.WaitingJob.priorityValue.desc() ).\
-                   limit( numJobs ).all()
+            jobs = dbconnection.query( db.WaitingJob )\
+                   .join( db.User )\
+                   .filter( db.User.enabled==True )\
+                   .order_by( db.WaitingJob.priorityValue.desc() )\
+                   .limit( numJobs )\
+                   .all()
             
         self.logFct( "   ... found {n} jobs".format(n=len(jobs)),
                      logCategory="job_scheduler" )
@@ -73,9 +75,9 @@ class hQJobSchedulerSimple( object ):
             user = job.user
             
             self.logFct( "     {idx}/{N} get vacant host for job {i} of user {u}".format( idx=idx+1,
-                                                                                     N=len(jobs),
-                                                                                     i=job.id,
-                                                                                     u=user.name ),
+                                                                                          N=len(jobs),
+                                                                                          i=job.id,
+                                                                                          u=user.name ),
                          logCategory="sendingjobs" )
 
             # get excluded hosts

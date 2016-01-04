@@ -159,6 +159,8 @@ if __name__ == '__main__':
                                                            slots = reserve_slots[ host.id ],
                                                            host = host )
                     con.introduce( new_reserved_slots )
+
+                    host.max_number_occupied_slots -= reserve_slots[ host.id ]
                     
             except:
                 reserve_slots[ host.id ] = 0
@@ -180,11 +182,21 @@ if __name__ == '__main__':
 
         # delete ReservedSlots
         for reservation in reservations:
-            d = con.query( db.ReservedSlots )\
-                .filter( db.ReservedSlots.reservation==reservation )\
-                .delete()
+            reservedSlots = con.query( db.ReservedSlots )\
+                            .filter( db.ReservedSlots.reservation==reservation )\
+                            .all()
+
+            # update max_number_occupied_slots for each host and delete ReservedSlots entry
+            for rs in reservedSlots:
+                rs.host.max_number_occupied_slots += rs.slots
+
+                con.delete( rs )
+
+            
         # delete Reservation
-        d = con.query( db.Reservation ).filter( db.Reservation.code==args.deleteReservation ).delete()
+        d = con.query( db.Reservation )\
+            .filter( db.Reservation.code==args.deleteReservation )\
+            .delete()
 
         con.commit()
         

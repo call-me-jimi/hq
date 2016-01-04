@@ -114,6 +114,7 @@ class hQBaseServer(SocketServer.ThreadingMixIn, SocketServer.TCPServer, Daemon, 
         except KeyboardInterrupt:
             sys.exit(0)
 
+
     def store_details( self ):
         """! extends store details about running server """
         
@@ -162,6 +163,7 @@ class hQBaseServer(SocketServer.ThreadingMixIn, SocketServer.TCPServer, Daemon, 
 
         self.shutdown_server()
 
+
     def after_request_processing( self ):
         """! @brief is executed after a request came in
 
@@ -185,16 +187,22 @@ class hQBaseServer(SocketServer.ThreadingMixIn, SocketServer.TCPServer, Daemon, 
             time.sleep( interval )
 
             try:
-                if not loop[ 'event' ].is_set():
-                    loop[ 'event' ].set()
+                if not loop[ 'is_running' ].is_set():
+                    # set lock
+                    loop[ 'is_running' ].set()
+                    # run function
                     fct( **kwargs )
+                    # release lock
+                    loop[ 'is_running' ].clear()
                 else:
                     # skip while the previous function is still executing
+                    self.logger.write( 'loop {p} is still running'.format(p=name) )
                     continue
             except:
-                pass
-            finally:
-                loop[ 'event' ].clear()
+                # something went wrong
+                # release lock
+                self.logger.write( 'loop {p} had an exception'.format(p=name) )
+                loop[ 'is_running' ].clear()
 
             
     def start_loops( self ):
@@ -203,16 +211,14 @@ class hQBaseServer(SocketServer.ThreadingMixIn, SocketServer.TCPServer, Daemon, 
         # iterate over all loop functions in self.loops and start them in an own thread,
         # respectively
         for loopName,loop in self.loops.iteritems():
-            fct = loop['fct']
-            interval = loop['interval']
+            # collect arguments for self.run_loop
             kwargs = loop.get( 'kwargs', {} )
 
-            #l = threading.Thread( target=fct, kwargs={ 'interval': interval} )
             loopKwargs = kwargs.copy()
             loopKwargs.update( { 'name': loopName } )
 
-            # add an event lock to the loop
-            self.loops[ loopName ][ 'event' ] = threading.Event()
+            # add an event lock to the loop as an idicator of beeing running
+            self.loops[ loopName ][ 'is_running' ] = threading.Event()
                                
             l = threading.Thread( target=self.run_loop, kwargs=loopKwargs )
             l.setDaemon( True )
@@ -230,6 +236,7 @@ class hQBaseServer(SocketServer.ThreadingMixIn, SocketServer.TCPServer, Daemon, 
         has to be overwritten by the child
         """
         pass
+
     
     def shutdown_server( self ):
         """! @brief shutdown server """
@@ -380,20 +387,25 @@ class hQBaseRequestProcessor(object):
                                                regExp = "^lslogger$",
                                                help = "return logger setting",
                                                fct = self.process_lslogger )
-        self.commands["SETLOGGER"] = hQCommand( name = "setlogger",
-                                                regExp = "^setlogger:([^:]*):([^:]*)",
-                                                arguments = ["logger","status"],
-                                                help = "set logger on or off",
-                                                fct = self.process_setlogger )
+        self.commands["ACTIVATELOGGER"] = hQCommand( name = "activatelogger",
+                                                     regExp = "^activatelogger:(.*)",
+                                                     arguments = ["logger"],
+                                                     help = "activate logger",
+                                                     fct = self.process_activatelogger )
+        self.commands["DEACTIVATELOGGER"] = hQCommand( name = "deactivatelogger",
+                                                       regExp = "^deactivatelogger:(.*)",
+                                                       arguments = ["logger"],
+                                                       help = "deactivate logger",
+                                                       fct = self.process_deactivatelogger )
         self.commands["LSLOOP"] = hQCommand( name = "lsloops",
                                               regExp = "^lsloops$",
                                               help = "return list of loops",
                                               fct = self.process_lsloops )
-        self.commands["SETLOOP"] = hQCommand( name = "setloop",
-                                              regExp = "^setloop:(.*):(.*)$",
+        self.commands["SETLOOPINTERVAL"] = hQCommand( name = "setloopinterval",
+                                              regExp = "^setloopinterval:(.*):(.*)$",
                                               arguments = ["loop_key","interval"],
-                                              help = "set interval of loop with provided key (check lsloops) to provided interval in seconds",
-                                              fct = self.process_setloop )
+                                              help = "set interval of loop with provided key (check lsloops) to interval in seconds",
+                                              fct = self.process_updateloop )
         self.commands["SLEEP"] = hQCommand( name = "sleep",
                                             regExp = "^sleep:(.*)",
                                             arguments = ['time_in_secs'],
@@ -597,7 +609,7 @@ class hQBaseRequestProcessor(object):
         request.send( '\n'.join( loopList ) )
 
 
-    def process_setloop( self, request, loop_key, interval ):
+    def process_updateloop( self, request, loop_key, interval ):
         """! @brief process 'lsloop' command
         """
 
@@ -622,21 +634,32 @@ class hQBaseRequestProcessor(object):
         request.send( '\n'.join( response ) )
 
             
-    def process_setlogger( self, request, logger, status ):
-        """ ! @brief process 'setlogger' command
+    def process_activatelogger( self, request, logger ):
+        """ ! @brief process 'activatelogger' command
         """
 
         if logger in self.server.logger.logCategories:
-            if status in ["on","True","true"]:
-                # turn on logger
-                self.server.logger.logCategories[ logger ] = True
-                request.send("logger '{l}' has been turned on.".format(l=logger) )
-                return
-            else:
-                # turn off logger
-                self.server.logger.logCategories[ logger ] = False
-                request.send("logger '{l}' has been turned off.".format(l=logger) )
-                return
+            # turn on logger
+            self.server.logger.logCategories[ logger ] = True
+            
+            request.send("logger '{l}' has been turned on.".format(l=logger) )
+            
+            return
                 
         request.send("nothing has been done.")
+
+    def process_deactivatelogger( self, request, logger, status ):
+        """ ! @brief process 'deactivatelogger' command
+        """
+
+        if logger in self.server.logger.logCategories:
+            # turn off logger
+            self.server.logger.logCategories[ logger ] = False
+            
+            request.send("logger '{l}' has been turned off.".format(l=logger) )
+            
+            return
+                
+        request.send("nothing has been done.")
+
 

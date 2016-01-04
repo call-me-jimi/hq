@@ -36,12 +36,15 @@ class hQServer(hQBaseServer):
                                          'kwargs': {'short': True},
                                          'interval': 5,
                                          'description': "print periodically status of server" },
-                       'load_hosts': { 'fct': self.update_load_hosts,
-                                       'interval': 5,
-                                       'description': "update periodically load of hosts" },
+                       'update_load_hosts': { 'fct': self.update_load_hosts,
+                                              'interval': 5,
+                                              'description': "update periodically load of hosts" },
                        'check_database': { 'fct': self.check_database,
                                            'interval': 1,
-                                           'description': "check database for finished jobs and free occupied slots. afterwards, send jobs to user if there are free slots."}
+                                           'description': "check database for finished jobs and free occupied slots. afterwards, send jobs to user if there are free slots."},
+                       'do_nothing': { 'fct': self.do_nothing,
+                                      'interval': 1,
+                                      'description': "just for debugging."}
                        }
 
         # events which indicate running processes
@@ -64,7 +67,7 @@ class hQServer(hQBaseServer):
         
 
         
-    def get_status( self ):
+    def get_status( self, remove_connection ):
         """! @brief get status of server from database """
         dbconnection = hQDBConnection()
 
@@ -96,24 +99,24 @@ class hQServer(hQBaseServer):
         if slotInfo[0]==0:
             slotInfo = (0, 0, 0)
 
-        statusDict = {'status': 'on' if self.active.is_set() else 'off',
-                      'hosts': slotInfo[0],
-                      'oSlots': slotInfo[2],
-                      'tSlots': slotInfo[1],
-                      'wJobs': counts.get('waiting',0),
-                      'pJobs': counts.get('pending',0),
-                      'rJobs': counts.get('running',0),
-                      'fJobs': counts.get('finished',0)
-                      }
-        
-        # connection has to be removed. otherwise calling hQDSession returns (in the same thread)
-        # the same connection which doesn't see any updates in the meantime
-        dbconnection.remove()
+        statusDict = { 'status': 'on' if self.active.is_set() else 'off',
+                       'hosts': slotInfo[0],
+                       'tSlots': int(slotInfo[1]),
+                       'oSlots': int(slotInfo[2]),
+                       'wJobs': counts.get('waiting',0),
+                       'pJobs': counts.get('pending',0),
+                       'rJobs': counts.get('running',0),
+                       'fJobs': counts.get('finished',0)
+                       }
+
+        if remove_connection:
+            # connection has to be removed. otherwise calling hQBDSession returns (in the same thread)
+            # the same connection which doesn't see recent updates
+            dbconnection.remove()
         
         return statusDict
 
-        
-    def print_status(self, returnString=False, short=False):
+    def print_status(self, returnString=False, short=False, remove_connection=False ):
         """!@brief print status of server to stdout if not outSream is given
 
         @param returnString (boolean) return formatted status intsead of passing it to logger
@@ -121,7 +124,7 @@ class hQServer(hQBaseServer):
         @return
         """
         
-        statusDict = self.get_status()
+        statusDict = self.get_status( remove_connection=remove_connection )
 
         t = datetime.now()
         
@@ -194,7 +197,7 @@ class hQServer(hQBaseServer):
 
         if self.active.is_set():
             try:
-                self.logger.write( "send waiting jobs ...",
+                self.logger.write( "check for waiting jobs ...",
                                    logCategory='debug')
 
                 ## get next job, find vacant host and send job
@@ -296,6 +299,8 @@ class hQServer(hQBaseServer):
         # connection has to be removed. otherwise calling hQDSession returns (in the same thread)
         # the same connection which doesn't see any updates in the meantime
         dbconnection.remove()
+        self.logger.write( "check database ... done",
+                           logCategory='debug')
 
     
     def set_reachability_hosts( self, hosts=[] ):
@@ -453,44 +458,54 @@ class hQServer(hQBaseServer):
 
                 for p in hostLoadList:
                      p.join()
-                     self.logger.write( "     {h} has load {l}".format( h=p.host, l=p.load[0] ),
-                                        logCategory='debug' )
 
-                     # update load in database
-                     host = hostsDict[ p.host ]
+                     if p.load:
+                         self.logger.write( "     {h} has load {l}".format( h=p.host, l=p.load[0] ),
+                                            logCategory='debug' )
 
-                     # get all HostLoad instances attached to Host
-                     hostLoads = dbconnection.query( db.HostLoad )\
-                                 .join( db.Host )\
-                                 .filter( db.Host.id==host.id )\
-                                 .order_by( db.HostLoad.datetime )\
-                                 .all()
+                         # update load in database
+                         host = hostsDict[ p.host ]
 
-                     # check whether there is a no newer entry
-                     if len(hostLoads)==0 or hostLoads[-1].datetime<datetime.now():
-                         # store only the last 5 load information
-                         if len(hostLoads)>4:
-                             # delete oldest one
-                             dbconnection.delete( hostLoads[0] )
+                         # get all HostLoad instances attached to Host
+                         hostLoads = dbconnection.query( db.HostLoad )\
+                                     .join( db.Host )\
+                                     .filter( db.Host.id==host.id )\
+                                     .order_by( db.HostLoad.datetime )\
+                                     .all()
 
-                         # create new HostLoad instance
-                         hostLoad = db.HostLoad( host = host,
-                                                 loadavg_1min = p.load[0],
-                                                 loadavg_5min = p.load[1],
-                                                 loadavg_10min = p.load[2] )
+                         # check whether there is a no newer entry
+                         if len(hostLoads)==0 or hostLoads[-1].datetime<datetime.now():
+                             # store only the last 5 load information
+                             if len(hostLoads)>4:
+                                 # delete oldest one
+                                 dbconnection.delete( hostLoads[0] )
 
-                         dbconnection.introduce( hostLoad )
+                             # create new HostLoad instance
+                             hostLoad = db.HostLoad( host = host,
+                                                     loadavg_1min = p.load[0],
+                                                     loadavg_5min = p.load[1],
+                                                     loadavg_10min = p.load[2] )
+
+                             dbconnection.introduce( hostLoad )
+                     else:
+                         self.logger.write( "     getting load of {h} failed!".format( h=p.host ),
+                                            logCategory='debug' )
+                         
 
                 dbconnection.commit()
+
+                self.logger.write( "Checking load of hosts ... done",
+                                   logCategory='debug' )
 
                 # connection has to be removed. otherwise calling hQDSession returns (in the same thread)
                 # the same connection which doesn't see any updates in the meantime
                 dbconnection.remove()
             except:
+                print traceback.print_exc()
                 pass
             finally:
                 if not force:
-                    # set flag
+                    # unset flag
                     self.updating_load_hosts.clear()
         
     def after_request_processing( self ):
@@ -569,6 +584,20 @@ class hQServer(hQBaseServer):
             self.logger.write( "error while sending somthing to hq-user-server of user {u}.".format(u=user.name),
                                logCategory="error")
 
+    def do_nothing( self ):
+        """! @brief jsut for debugging"""
+
+        self.logger.write( "do nothing",
+                           logCategory='debug')
+
+        # connection to database
+        dbconnection = hQDBConnection()
+        dbconnection.remove()
+        
+        self.logger.write( "do nothing ... done",
+                           logCategory='debug')
+
+        
         
 class hQServerHandler( hQBaseServerHandler ):
     def __init__( self, request, clientAddress, server ):
@@ -593,14 +622,14 @@ class hQRequestProcessor( hQBaseRequestProcessor ):
                                                   regExp = "^updateslots$",
                                                   help = "update slot statistics",
                                                   fct=self.process_updateslots)
-        self.commands["ACTIVATE"] = hQCommand( name = "activate",
-                                              regExp = "^activate$",
+        self.commands["ACTIVATECLUSTER"] = hQCommand( name = "activatecluster",
+                                              regExp = "^activatecluster$",
                                               help = "activate cluster",
-                                              fct = self.process_activate )
-        self.commands["DEACTIVATE"] = hQCommand( name = "deactivate",
-                                              regExp = "^deactivate$",
+                                              fct = self.process_activatecluster )
+        self.commands["DEACTIVATECLUSTER"] = hQCommand( name = "deactivatecluster",
+                                              regExp = "^deactivatecluster$",
                                               help = "deactivate cluster",
-                                              fct = self.process_deactivate )
+                                              fct = self.process_deactivatecluster )
         self.commands["LSCLUSTER"] = hQCommand( name = "lscluster",
                                               regExp = "^lscluster$",
                                               help = "return cluster details",
@@ -710,7 +739,7 @@ class hQRequestProcessor( hQBaseRequestProcessor ):
         request.send( "number of occupied slots have been updated." )
             
 
-    def process_activate( self, request ):
+    def process_activatecluster( self, request ):
         """! @brief process 'activate' command
         """
 
@@ -719,7 +748,7 @@ class hQRequestProcessor( hQBaseRequestProcessor ):
         request.send('cluster has been activated')
 
         
-    def process_deactivate( self, request ):
+    def process_deactivatecluster( self, request ):
         """! @brief process 'deactivate' command
         """
 
@@ -847,11 +876,22 @@ class hQRequestProcessor( hQBaseRequestProcessor ):
         dbconnection = hQDBConnection()
         
         # show cluster
-        hosts = dbconnection.query( db.Host ).all()
+        hosts = dbconnection.query( db.Host ).order_by( db.Host.full_name ).all()
 
-        response = "cluster is {s}\n".format( s='on' if self.server.active.is_set() else 'off' )
+        #response = "cluster is {s}\n".format( s='ON' if self.server.active.is_set() else 'OFF' )
+        response = "cluster details\n"
         response += "------------------------\n"
 
+        # add status
+        response += "summary:\n\n"
+        response += "  "+self.server.print_status( returnString=True,
+                                                   short=True,
+                                                   remove_connection=False)
+        response += "\n\n"
+        response += "details:\n\n"
+
+
+        # add cluster info
         for idx,host in enumerate(hosts):
             try:
                 load = host.host_load[-1].loadavg_1min
@@ -866,7 +906,7 @@ class hQRequestProcessor( hQBaseRequestProcessor ):
                          'maxSlots': host.max_number_occupied_slots,
                          'load': load
                          }
-            response += "{i} - [host:{name}] [status:{status}] [free slots:{freeSlots}/{maxSlots}] [load:{load}]\n".format( **hostInfo )
+            response += "  {i} - [status:{status:>10}] [host:{name:>15}] [free slots:{freeSlots:>3}/{maxSlots:>3}] [load:{load}]\n".format( **hostInfo )
 
         if response:
             request.send( response )
