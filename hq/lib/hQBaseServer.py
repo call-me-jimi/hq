@@ -648,7 +648,7 @@ class hQBaseRequestProcessor(object):
                 
         request.send("nothing has been done.")
 
-    def process_deactivatelogger( self, request, logger, status ):
+    def process_deactivatelogger( self, request, logger ):
         """ ! @brief process 'deactivatelogger' command
         """
 
