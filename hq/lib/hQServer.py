@@ -11,6 +11,9 @@ import sys
 from collections import defaultdict
 from pprint import pprint as pp
 import random
+import gc
+
+
 
 # import hq libraries
 from hq.lib.hQBaseServer import hQBaseServer,hQBaseServerHandler,hQBaseRequestProcessor
@@ -33,7 +36,7 @@ class hQServer(hQBaseServer):
 
         # set interval for loop of calling loop functions
         self.loops = { 'print_status': { 'fct': self.print_status,
-                                         'kwargs': {'short': True},
+                                         'kwargs': {'short': True, 'remove_connection': True},
                                          'interval': 5,
                                          'description': "print periodically status of server" },
                        'update_load_hosts': { 'fct': self.update_load_hosts,
@@ -44,7 +47,10 @@ class hQServer(hQBaseServer):
                                            'description': "check database for finished jobs and free occupied slots. afterwards, send jobs to user if there are free slots."},
                        'do_nothing': { 'fct': self.do_nothing,
                                       'interval': 1,
-                                      'description': "just for debugging."}
+                                      'description': "just for debugging."},
+                       'do_absolutely_nothing': { 'fct': self.do_absolutely_nothing,
+                                                  'interval': 1,
+                                                  'description': "just for debugging."}
                        }
 
         # events which indicate running processes
@@ -299,6 +305,7 @@ class hQServer(hQBaseServer):
         # connection has to be removed. otherwise calling hQDSession returns (in the same thread)
         # the same connection which doesn't see any updates in the meantime
         dbconnection.remove()
+        
         self.logger.write( "check database ... done",
                            logCategory='debug')
 
@@ -497,13 +504,16 @@ class hQServer(hQBaseServer):
                 self.logger.write( "Checking load of hosts ... done",
                                    logCategory='debug' )
 
-                # connection has to be removed. otherwise calling hQDSession returns (in the same thread)
-                # the same connection which doesn't see any updates in the meantime
-                dbconnection.remove()
             except:
                 print traceback.print_exc()
-                pass
             finally:
+                try:
+                    # connection has to be removed. otherwise calling hQDSession returns (in the same thread)
+                    # the same connection which doesn't see any updates in the meantime
+                    dbconnection.remove()
+                except:
+                    pass
+                
                 if not force:
                     # unset flag
                     self.updating_load_hosts.clear()
@@ -585,7 +595,7 @@ class hQServer(hQBaseServer):
                                logCategory="error")
 
     def do_nothing( self ):
-        """! @brief jsut for debugging"""
+        """! @brief just for debugging"""
 
         self.logger.write( "do nothing",
                            logCategory='debug')
@@ -597,7 +607,15 @@ class hQServer(hQBaseServer):
         self.logger.write( "do nothing ... done",
                            logCategory='debug')
 
-        
+    def do_absolutely_nothing( self ):
+        """! @brief just for debugging"""
+
+        self.logger.write( "do absolutely nothing",
+                           logCategory='debug')
+
+        self.logger.write( "do absolutely nothing ... done",
+                           logCategory='debug')
+
         
 class hQServerHandler( hQBaseServerHandler ):
     def __init__( self, request, clientAddress, server ):
@@ -716,6 +734,22 @@ class hQRequestProcessor( hQBaseRequestProcessor ):
                                                  arguments = ["json_str"],
                                                  help = "info about jobs which could not be started",
                                                  fct = self.process_failedjobs )
+        self.commands["COLLECTGARBAGE"] = hQCommand( name = "collectgarbage",
+                                              regExp = "^collectgarbage$",
+                                              help = "use garbage collector to explicitly collect the garbage",
+                                              fct = self.process_collectgarbage )
+        self.commands["ACTIVATEGC"] = hQCommand( name = "activategc",
+                                              regExp = "^activategc$",
+                                              help = "activate debug mode of garbage collector",
+                                              fct = self.process_activategc )
+        self.commands["DEACTIVATEGC"] = hQCommand( name = "deactivategc",
+                                                   regExp = "^deactivategc$",
+                                                   help = "deactivate debug mode of garbage collector",
+                                                   fct = self.process_deactivategc )
+        self.commands["DEBUGGER"] = hQCommand( name = "debugger",
+                                              regExp = "^debugger$",
+                                              help = "invoke the debugger pdb",
+                                              fct = self.process_debugger )
         
     def process_updateslots( self, request ):
         """! @brief process 'activate' command
@@ -906,7 +940,7 @@ class hQRequestProcessor( hQBaseRequestProcessor ):
                          'maxSlots': host.max_number_occupied_slots,
                          'load': load
                          }
-            response += "  {i} - [status:{status:>10}] [host:{name:>15}] [free slots:{freeSlots:>3}/{maxSlots:>3}] [load:{load}]\n".format( **hostInfo )
+            response += "  {i} - [status:{status:>10}] [host:{name:>15}] [free slots:{freeSlots:>3}/{maxSlots:>3}] [load:{load:>2}]\n".format( **hostInfo )
 
         if response:
             request.send( response )
@@ -1362,3 +1396,41 @@ class hQRequestProcessor( hQBaseRequestProcessor ):
 
         request.send( "set {n} jobs as waiting".format(n=len(jobs)) )
 
+    def process_collectgarbage( self, request ):
+        """! @brief process 'updateload' command
+        """
+
+        #self.logger.write( "collect garbage",
+        #                   logCategory='debug')
+
+        print "collect garbage"
+        print gc.get_count()
+        gc.set_debug( gc.DEBUG_STATS )
+        gc.collect()
+        gc.set_debug( 0 )
+        print gc.get_count()
+        
+        #self.logger.write( "collect garbage ... done",
+        #                   logCategory='debug')
+
+        request.send( 'done.' )
+
+
+    def process_activategc( self, request ):
+        """! @brief activate debug mode of garbage collector
+        """
+        
+        gc.set_debug( gc.DEBUG_STATS )
+
+
+    def process_deactivategc( self, request ):
+        """! @brief deactivate debug mode of garbage collector
+        """
+        
+        gc.set_debug( 0 )
+
+        
+    def process_debugger( self, request ):
+        """! @brief invoke debugger """
+
+        import pdb; pdb.set_trace()
