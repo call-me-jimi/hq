@@ -807,8 +807,6 @@ def literalquery(statement, dialect=None):
         visit_bindparam = Compiler.render_literal_bindparam
 
         def render_literal_value(self, value, type_):
-            if isin
-        def render_literal_value(self, value, type_):
             if isinstance(value, (sqlalchemy.Integer, long)):
                 return str(value)
             elif isinstance(value, sqlalchemy.DateTime):
