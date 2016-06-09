@@ -28,6 +28,13 @@ class hQServerDetails(object):
             homedir = os.environ['HOME']
             BASEDIR =  "{home}/.hq".format(home=homedir)
 
+            try:
+                # create directory
+                os.mkdir( BASEDIR )
+            except OSError:
+                # probably directory already exists
+                pass
+            
             self.cfgFile = "{basedir}/{serverType}.cfg".format( basedir = BASEDIR,
                                                                 serverType = self.server_type )
 
