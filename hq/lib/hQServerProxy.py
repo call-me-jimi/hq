@@ -134,6 +134,8 @@ class hQServerProxy(object):
             # try to start a new Server on port in case of status 2 or 3
             status = self.invokeServer( cnt )
 
+        return self
+
     def connect( self ):
         """! @brief just create new socket """
 
@@ -144,6 +146,8 @@ class hQServerProxy(object):
                                             catchErrors=False )
             except:
                 pass
+
+        return self
 
     def isRunning( self ):
         """! @brief check if server is running
@@ -288,7 +292,7 @@ class hQServerProxy(object):
 
         logger.info( "... done" )
         
-        return True
+        return self
 
 
     def recv(self):
@@ -314,6 +318,8 @@ class hQServerProxy(object):
         
         self.clientSock.shutdown(socket.SHUT_RDWR)
         self.openConnection = False
+
+        return None
 
 
     def sendAndRecv(self,request):
