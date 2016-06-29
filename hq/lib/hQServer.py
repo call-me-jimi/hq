@@ -26,6 +26,12 @@ from hq.lib.hQJobSchedulerSimple import hQJobSchedulerSimple
 import hq.lib.hQDatabase as db
 
 class hQServer(hQBaseServer):
+    """main hq server
+
+    **Args**
+      | port (int): port on which server is listening
+      
+    """
     server_type ='hq-server'
     
     def __init__(self, port):
@@ -34,7 +40,7 @@ class hQServer(hQBaseServer):
 
         super( hQServer, self ).__init__( port, handler, processor )
 
-        # set interval for loop of calling loop functions
+        # define function which should be executed periodically in a thread, respectively.
         self.loops = { 'print_status': { 'fct': self.print_status,
                                          'kwargs': {'short': True, 'remove_connection': True},
                                          'interval': 5,
@@ -64,7 +70,7 @@ class hQServer(hQBaseServer):
 
     
     def init_database_ids( self ):
-        """! @brief save some database ids in self.database_ids
+        """save some database ids in :attr:`hQBaseServer.database_ids`
         """
 
         dbconnection = hQDBConnection()
@@ -73,8 +79,27 @@ class hQServer(hQBaseServer):
         
 
         
-    def get_status( self, remove_connection ):
-        """! @brief get status of server from database """
+    def get_status( self, remove_connection=True ):
+        """get status of server from database
+
+        **Kwargs**
+          | remove_connection (bool): remove connection to database at the end. default: True.
+
+        **Returns**
+          dict: server status::
+
+            {
+              'status': str,  # 'on' or 'off'
+              'hosts': int,   # number of hosts
+              'tSlots': int,  # total number of slots
+              'oSlots': int,  # number of occupied slots
+              'wJobs': int,   # number of waiting jobs
+              'pJobs': int,   # number of pending jobs
+              'rJobs': int,   # number of running jobs
+              'fJobs': int    # number of finished jobs
+            }
+
+        """
         dbconnection = hQDBConnection()
 
         self.logger.write( "print status: request database about jobs status",
@@ -123,11 +148,16 @@ class hQServer(hQBaseServer):
         return statusDict
 
     def print_status(self, returnString=False, short=False, remove_connection=False ):
-        """!@brief print status of server to stdout if not outSream is given
+        """print status of server to stdout (over logger) or return rendered string
 
-        @param returnString (boolean) return formatted status intsead of passing it to logger
-
-        @return
+        **Kwargs**
+          | returnString (bool): return rendered status instead of passing it to logger. default: False
+          | short (bool): construct a short string. default: False
+          | remove_connection (bool): remove connection to database at the end. default: False
+          
+        **Returns**
+          string | None: if ``returnString==True``, a string is returned otherwise nothing.
+          
         """
         
         statusDict = self.get_status( remove_connection=remove_connection )
@@ -160,7 +190,11 @@ class hQServer(hQBaseServer):
 
             
     def check_database( self ):
-        """! @brief """
+        """check database
+
+        check if there are finished jobs to process and initiate the sending of waiting jobs to
+        cluster if cluster is ready.
+        """
 
         self.logger.write( "check database",
                            logCategory='debug')
@@ -173,6 +207,7 @@ class hQServer(hQBaseServer):
         #timeLogger.log( "... found {n}".format(n=len(finishedJobs) ) )
 
         if finishedJobs:
+            # there are finished jobs which has not been processed yet
             self.logger.write( "{n} finished job{s}.".format(n=len(finishedJobs), s='s' if len(finishedJobs)>1 else '' ),
                                logCategory='debug' )
 
@@ -311,11 +346,19 @@ class hQServer(hQBaseServer):
 
     
     def set_reachability_hosts( self, hosts=[] ):
-        """! @brief set reachability of hosts given in list or check all in database 
-        
-        @param hosts (list) list host full names
+        """set reachability of hosts given in list or check all in database 
 
-        @return (dict) dictinary with hosts and their reachability status
+        **Kwargs**
+          | hosts (list): list of full host names
+
+        **Returns**  
+          dict: dictinary with hosts and their reachability status::
+
+             {
+               'HOST1_NAME': bool,  # reachability status of host1
+               'HOST2_NAME': bool,  # reachability status of host2
+             }
+          
         """
 
         dbconnection = hQDBConnection()
@@ -377,9 +420,13 @@ class hQServer(hQBaseServer):
         
 
     def activate_host( self, host ):
-        """! @brief set status of host to active if it is available and reachable
+        """set status of host to active if it is available and reachable
 
-        @param host (string) full host name
+        **Args**
+          | host (string): full host name
+
+        **Returns**
+          str | None: either 'activated' if activation was successful or None
         """
 
         dbconnection = hQDBConnection()
@@ -404,9 +451,14 @@ class hQServer(hQBaseServer):
 
         
     def deactivate_host( self, host ):
-        """! @brief set status of host to non-active
+        """set status of host to non-active
 
-        @param host (string) full host name
+        **Args**
+          | host (string): full host name
+          
+        **Returns**
+          str | None: either 'deactivated' if activation was successful or None
+          
         """
 
         dbconnection = hQDBConnection()
@@ -428,12 +480,12 @@ class hQServer(hQBaseServer):
         
             
     def update_load_hosts( self, hosts=[], force=False ):
-        """! @brief set load of hosts (or of all given in database) by connecting to server and grep /proc/loadavg
+        """set load of hosts (or of all given in database) by connecting to server and grep /proc/loadavg
+
+        **Args**
+          | hosts (list): list of db.Host instances
+          | force (bool): force update regardless of flag self.updating_load_hosts
         
-        @param hosts (list) list Host instances
-        @param force (bool) force update regardless of flag self.updating_load_hosts
-        
-        @return nothing
         """
         
         if force or not self.updating_load_hosts.is_set():
@@ -519,18 +571,27 @@ class hQServer(hQBaseServer):
                     self.updating_load_hosts.clear()
         
     def after_request_processing( self ):
-        """! @brief is executed after a request came in
+        """is executed after a request came in
         """
         pass
 
 
     def ping_user( self, user, con ):
-        """! @brief send ping to user server """
+        """send ping to user's hq-user-server
+
+        **Args**
+          | user (string): user name
+          | con (DBConnection): connection to database
+
+        **Returns**
+          bool: ``True`` if user's hq-user-server is pingable otherwise ``False``
+          
+        """
         now = datetime.now()
 
         try:
             if user.last_check + timedelta( seconds=user.idle_time ) < now:
-                # ping user server
+                # create socket connection to hq-user-server
                 sock = hQSocket( host=user.hq_user_server_host,
                                  port=user.hq_user_server_port,
                                  catchErrors=False)
@@ -539,6 +600,7 @@ class hQServer(hQBaseServer):
                 response = sock.recv()
 
                 if response == 'pong':
+                    # server responsed with 'pong'
                     user.idle_time = 0
                     user.last_check = now
 
@@ -578,7 +640,14 @@ class hQServer(hQBaseServer):
 
         
     def send_to_user( self, cmd, user, con ):
-        """! @brief send command to user """
+        """send command to user, i.e., to the user's hq-user-server
+
+        **Args**
+          | cmd (string): command for hq-user-server
+          | user (string): name of user
+          | con (DBConnection): connection to database
+          
+        """
         try:
             sock = hQSocket( host=user.hq_user_server_host,
                              port=user.hq_user_server_port,
@@ -595,7 +664,7 @@ class hQServer(hQBaseServer):
                                logCategory="error")
 
     def do_nothing( self ):
-        """! @brief just for debugging"""
+        """just for debugging"""
 
         self.logger.write( "do nothing",
                            logCategory='debug')
@@ -608,7 +677,7 @@ class hQServer(hQBaseServer):
                            logCategory='debug')
 
     def do_absolutely_nothing( self ):
-        """! @brief just for debugging"""
+        """just for debugging"""
 
         self.logger.write( "do absolutely nothing",
                            logCategory='debug')
@@ -618,14 +687,20 @@ class hQServer(hQBaseServer):
 
         
 class hQServerHandler( hQBaseServerHandler ):
+    """hQServer specific request handler
+
+    **Args**
+      | request (object): request object
+      | clientAddress (string): address of requesting client
+      | server (hQBaseServer): server which got the request
+    
+    """
     def __init__( self, request, clientAddress, server ):
         super(hQServerHandler, self).__init__( request, clientAddress, server )
 
 
     def finish( self ):
-        """! @brief Send jobs to vacant hosts and cleanup handler afterwards
-
-        Check database if there are waiting jobs, check user, find vacant host, and send job to associated tms of user.
+        """excute functions after request has been processed
         """
     
         super(hQServerHandler, self).finish()
@@ -633,6 +708,12 @@ class hQServerHandler( hQBaseServerHandler ):
 
 
 class hQRequestProcessor( hQBaseRequestProcessor ):
+    """define command which can be send to server
+
+    The base class :class:`hq.lib.hQBaseRequestProcessor` already defined several commands.
+    Addition commands are defined here. Each command is an instance of hQCommand.
+
+    """
     def __init__( self ):
         super( hQRequestProcessor, self ).__init__()
         
@@ -727,7 +808,7 @@ class hQRequestProcessor( hQBaseRequestProcessor ):
                                                fct = self.process_findjobs )
         self.commands["RESETPJOBS"] = hQCommand( name = "resetpjobs",
                                                  regExp = "^resetpjobs$",
-                                                 help = "set all pending jobs as finished. free occupied slots on hosts.",
+                                                 help = "set all pending jobs as waiting. free occupied slots on hosts.",
                                                  fct = self.process_resetpjobs )
         self.commands["FAILEDJOBS"] = hQCommand( name = "failedjobs",
                                                  regExp = "^failedjobs:(.*)",
@@ -752,7 +833,12 @@ class hQRequestProcessor( hQBaseRequestProcessor ):
                                               fct = self.process_debugger )
         
     def process_updateslots( self, request ):
-        """! @brief process 'activate' command
+        """process 'activate' command
+
+        count number occipied slots and update respective db.HostSummary entires
+        
+        **Args**
+          | request (object): request object
         """
 
         dbconnection = hQDBConnection()
@@ -774,7 +860,12 @@ class hQRequestProcessor( hQBaseRequestProcessor ):
             
 
     def process_activatecluster( self, request ):
-        """! @brief process 'activate' command
+        """process 'activate' command
+
+        set threading event :attr:`hQServer.active`.
+        
+        **Args**
+          | request (object): request object
         """
 
         self.server.active.set()
@@ -783,15 +874,37 @@ class hQRequestProcessor( hQBaseRequestProcessor ):
 
         
     def process_deactivatecluster( self, request ):
-        """! @brief process 'deactivate' command
+        """process 'deactivate' command
+        
+        unset threading event :attr:`hQServer.active`.
+        
+        **Args**
+          | request (object): request object
         """
 
         self.server.active.clear()
 
         request.send('cluster has been deactivated')
+
         
     def process_register( self, request, json_obj ):
-        """! @brief process 'register' command
+        """process 'register' command
+
+        register user to databases.
+        
+        **Args**
+          | request (object): request object
+          | json_obj (string): json representation of user details as dict
+
+            ::
+
+              {
+                'user': str,    # name of user
+                'host': str,    # host where user's hq-user-server is running
+                'port': int,    # port where user's hq-user-server is running
+                'id': str       # id of user's hq-user-server
+              }
+            
         """
 
         userDetails = json.loads( json_obj )
@@ -819,9 +932,17 @@ class hQRequestProcessor( hQBaseRequestProcessor ):
                        logCategory='system' )
 
         request.send( json.dumps( {'status': 'approved', 'user_id': user.id} ) )
+
         
     def process_enableuser( self, request, user_name ):
-        """! @brief process 'enableuser' command
+        """process 'enableuser' command
+
+        enable user for using hq.
+        
+        **Args**
+          | request (object): request object
+          | user_name (string): name of user
+          
         """
 
         con = hQDBConnection()
@@ -834,8 +955,15 @@ class hQRequestProcessor( hQBaseRequestProcessor ):
         except:
             request.send('failed.')
 
+
     def process_disableuser( self, request, user_name ):
-        """! @brief process 'disableuser' command
+        """process 'disableuser' command
+
+        disenable user for using hq.
+        
+        **Args**
+          | request (object): request object
+          | user_name (string): name of user
         """
 
         con = hQDBConnection()
@@ -848,8 +976,14 @@ class hQRequestProcessor( hQBaseRequestProcessor ):
         except:
             request.send('failed.')
 
+
     def process_lsusers( self, request ):
-        """ ! @brief process 'lsusers' command
+        """process 'lsusers' command
+
+        return rendered list of user via request object.
+        
+        **Args**
+          | request (object): request object
         """
 
         dbconnection = hQDBConnection()
@@ -874,7 +1008,14 @@ class hQRequestProcessor( hQBaseRequestProcessor ):
         request.send( '\n'.join( header  + userList ) )
             
     def process_lsuser( self, request, user_name ):
-        """ ! @brief process 'lauser' command
+        """process 'lauser' command
+
+        return rendered details of user via request object.
+        
+        **Args**
+          | request (object): request object
+          | user_name (string): name of user
+          
         """
 
         dbconnection = hQDBConnection()
@@ -904,7 +1045,12 @@ class hQRequestProcessor( hQBaseRequestProcessor ):
             
         
     def process_lscluster( self, request ):
-        """! @brief process 'lscluster' command
+        """process 'lscluster' command
+
+        return rendered list of hosts in cluster via request object.
+        
+        **Args**
+          | request (object): request object
         """
 
         dbconnection = hQDBConnection()
@@ -948,9 +1094,13 @@ class hQRequestProcessor( hQBaseRequestProcessor ):
             request.send( "no hosts in cluster." )
 
     def process_activatehost( self, request, host ):
-        """! @brief process 'activatehost' command
+        """process 'activatehost' command
 
-        @param host
+        activate host in cluster.
+        
+        **Args**
+          | request (object): request object
+          | host (string): name of host
         """
 
         status = self.server.activate_host( host )
@@ -977,9 +1127,13 @@ class hQRequestProcessor( hQBaseRequestProcessor ):
         #return 
 
     def process_deactivatehost( self, request, host ):
-        """! @brief process 'activatehost' command
+        """process 'activatehost' command
 
-        @param host
+        deactive host in cluster.
+        
+        **Args**
+          | request (object): request object
+          | host (string): name of host
         """
 
         status = self.server.deactivate_host( host )
@@ -990,7 +1144,12 @@ class hQRequestProcessor( hQBaseRequestProcessor ):
             request.send( "nothing has been done" )
 
     def process_updateload( self, request ):
-        """! @brief process 'updateload' command
+        """process 'updateload' command
+
+        update load info of each host in database.
+        
+        **Args**
+          | request (object): request object
         """
         
         # update load of hosts
@@ -1000,7 +1159,26 @@ class hQRequestProcessor( hQBaseRequestProcessor ):
 
         
     def process_addjobs( self, request, json_str ):
-        """ ! @brief process 'addjobs' command
+        """process 'addjobs' command
+        
+        **Args**
+          | request (object): request object
+          | json_str (string): json representation of jobs which shall be added to queue
+
+            ::
+
+             {
+                'user_id': int,  # id of user
+                'host': str,     # host of user's hq-user-server
+                'port': int,     # port of user's hq-user-server
+                'id': str        # id of user's hq-user-server
+                'jobs': list     # list of jobs. each job is given as dict
+             }
+
+        .. note::
+        
+          think about a better and more secure way to integrate users
+          
         """
         
         jsonObj = json.loads( json_str )
@@ -1049,7 +1227,7 @@ class hQRequestProcessor( hQBaseRequestProcessor ):
             excludedHosts = job.get("excludedHosts","").split(',')
             priorityValue = job.get('priority',0)
             estimatedTime = int(job.get("estimatedTime",0))
-            estimatedMemory = int(job.get("estimatedmEMORY",0))
+            estimatedMemory = int(job.get("estimatedMemory",0))
 
             # check excluded hosts
             excludedHostsList = []
@@ -1111,7 +1289,12 @@ class hQRequestProcessor( hQBaseRequestProcessor ):
 
 
     def _render_job_list( self, num, job_type ):
-        """ ! @brief helper function for lswjobs, lspjobs, ...
+        """helper function for lswjobs, lspjobs, ...
+        
+        **Args**
+          | request (object): request object
+          | num (str|int): number of requested jobs
+          | job_type (string): either ``waiting``, ``pending``, ``running``, ``finished``
         """
 
         if not num:
@@ -1174,7 +1357,14 @@ class hQRequestProcessor( hQBaseRequestProcessor ):
                 
 
     def process_lswjobs( self, request, num ):
-        """ ! @brief process 'lswjobs' command
+        """process 'lswjobs' command
+
+        return rendered list of waiting jobs via request object.
+        
+        **Args**
+          | request (object): request object
+          | num (str|int): number of request jobs
+          
         """
         
         rendered_response = self._render_job_list( num=num,
@@ -1187,7 +1377,13 @@ class hQRequestProcessor( hQBaseRequestProcessor ):
 
 
     def process_lspjobs( self, request, num ):
-        """ ! @brief process 'lspjobs' command
+        """process 'lspjobs' command
+        
+        return rendered list of pending jobs via request object.
+        
+        **Args**
+          | request (object): request object
+          | num (str|int): number of request jobs
         """
         
         rendered_response = self._render_job_list( num=num,
@@ -1200,7 +1396,13 @@ class hQRequestProcessor( hQBaseRequestProcessor ):
 
 
     def process_lsrjobs( self, request, num ):
-        """ ! @brief process 'lsrjobs' command
+        """process 'lsrjobs' command
+        
+        return rendered list of running jobs via request object.
+        
+        **Args**
+          | request (object): request object
+          | num (str|int): number of request jobs
         """
         
         rendered_response = self._render_job_list( num=num,
@@ -1213,7 +1415,13 @@ class hQRequestProcessor( hQBaseRequestProcessor ):
 
 
     def process_lsfjobs( self, request, num ):
-        """ ! @brief process 'lsfjobs' command
+        """process 'lsfjobs' command
+        
+        return rendered list of finished jobs via request object.
+        
+        **Args**
+          | request (object): request object
+          | num (str|int): number of request jobs
         """
 
         rendered_response = self._render_job_list( num=num,
@@ -1226,7 +1434,14 @@ class hQRequestProcessor( hQBaseRequestProcessor ):
 
                 
     def process_lajob( self, request, job_id ):
-        """ ! @brief process 'lajob' command
+        """process 'lajob' command
+
+        return render details of a particular job via request object.
+        
+        **Args**
+          | request (object): request object
+          | job_id (string): id of a particular job
+          
         """
         
         # connect to database
@@ -1265,7 +1480,14 @@ class hQRequestProcessor( hQBaseRequestProcessor ):
 
 
     def process_findjobs( self, request, match_str ):
-        """ ! @brief process 'findjobs' command
+        """process 'findjobs' command
+
+        return rendered list of matching jobs via request object. match against command, info_text
+        and group of each job.
+        
+        **Args**
+          | request (object): request object
+          | match_str (string): 
         """
         
         # connect to database
@@ -1298,7 +1520,12 @@ class hQRequestProcessor( hQBaseRequestProcessor ):
 
 
     def process_resetpjobs( self, request ):
-        """ ! @brief process 'resetpjobs' command
+        """process 'resetpjobs' command
+
+        set all pending jobs as waiting.
+        
+        **Args**
+          | request (object): request object
         """
         
         dbconnection = hQDBConnection()
@@ -1345,10 +1572,13 @@ class hQRequestProcessor( hQBaseRequestProcessor ):
         request.send( "set {n} jobs as waiting".format(n=len(pJobs)) )
 
     def process_failedjobs( self, request, json_str ):
-        """ ! @brief process 'failedjobs' command
-        
-        @param json_str (json) json representation of a list with job_ids
+        """process 'failedjobs' command
 
+        failed jobs are added to waiting jobs.
+        
+        **Args**
+          | request (object): request object
+          | json_str (json) json representation of a list with job_ids
         """
 
         job_ids = json.loads( json_str )
@@ -1397,7 +1627,12 @@ class hQRequestProcessor( hQBaseRequestProcessor ):
         request.send( "set {n} jobs as waiting".format(n=len(jobs)) )
 
     def process_collectgarbage( self, request ):
-        """! @brief process 'updateload' command
+        """process 'updateload' command
+
+        this is for debugging
+        
+        **Args**
+          | request (object): request object
         """
 
         #self.logger.write( "collect garbage",
@@ -1417,20 +1652,36 @@ class hQRequestProcessor( hQBaseRequestProcessor ):
 
 
     def process_activategc( self, request ):
-        """! @brief activate debug mode of garbage collector
+        """activate debug mode of garbage collector
+
+        this is for debugging
+        
+        **Args**
+          | request (object): request object
         """
         
         gc.set_debug( gc.DEBUG_STATS )
 
 
     def process_deactivategc( self, request ):
-        """! @brief deactivate debug mode of garbage collector
+        """deactivate debug mode of garbage collector
+
+        this is for debugging.
+        
+        **Args**
+          | request (object): request object
         """
         
         gc.set_debug( 0 )
 
         
     def process_debugger( self, request ):
-        """! @brief invoke debugger """
+        """invoke debugger
+
+        this is for debugging.
+        
+        **Args**
+          | request (object): request object
+        """
 
         import pdb; pdb.set_trace()

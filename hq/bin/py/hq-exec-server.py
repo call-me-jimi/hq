@@ -18,7 +18,7 @@ import getpass
 
 # import hq libraries
 from hq.lib.hQExecServer import hQExecServer
-import hq.lib.hQUtils
+from hq.lib import hQUtils
 
 user = getpass.getuser()
 
