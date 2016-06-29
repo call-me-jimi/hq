@@ -101,7 +101,7 @@ class hQUserServer(hQBaseServer, Daemon):
             return False
 
 
-    def get_status( self, remove_connection ):
+    def get_status( self, remove_connection=True ):
         """! @brief get status of server from database """
         dbconnection = hQDBConnection()
 
@@ -169,7 +169,7 @@ class hQUserServer(hQBaseServer, Daemon):
             status = "[waiting jobs:{wJobs:>3}] [running jobs:{rJobs:>3}] [finished jobs:{rJobs:>3}]".format(**statusDict)
         else:
             hl = "--------------------------------------------------"
-            info = "[{t}] STATUS OF HQ-SERVER ON {h}:{p}".format(t=t, h=self.host, p=self.port)
+            info = "[{t}] STATUS OF HQ-USER-SERVER ON {h}:{p}".format(t=t, h=self.host, p=self.port)
             status = ""
             #status += "{s:>20} : {value}\n".format(s="cluster status", value=statusDict['status'] )
             status += "{s:>20} : {value}\n".format(s="active hosts", value=statusDict['hosts'] )
