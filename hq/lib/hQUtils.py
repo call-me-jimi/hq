@@ -140,6 +140,7 @@ class hQHostLoad(Thread):
                 
                 stdOut.seek(0)
                 stdErr.seek(0)
+                
                 out = stdOut.readlines()
                 err = stdErr.read()
 

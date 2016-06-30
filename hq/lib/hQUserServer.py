@@ -58,10 +58,14 @@ class hQUserServer(hQBaseServer, Daemon):
         dbconnection = hQDBConnection()
 
         # set interval for loop of calling loop functions
-        self.loops = { 'print_status': { 'fct': self.loop_print_status,
-                                         'interval': 60,
-                                         'description': "print periodically status of server" }
-                       }
+        self.loops = { 'print_status': { 'fct': self.print_status,
+                                         'kwargs': {'short': True, 'remove_connection': True},
+                                         'interval': 5,
+                                         'description': "print periodically status of server" } }
+        #self.loops = { 'print_status': { 'fct': self.loop_print_status,
+        #                                 'interval': 60,
+        #                                 'description': "print periodically status of server" }
+        #               }
 
         self.exec_servers = {}
 
@@ -97,7 +101,7 @@ class hQUserServer(hQBaseServer, Daemon):
             return False
 
 
-    def get_status( self ):
+    def get_status( self, remove_connection=True ):
         """! @brief get status of server from database """
         dbconnection = hQDBConnection()
 
@@ -141,58 +145,51 @@ class hQUserServer(hQBaseServer, Daemon):
                        'fJobs': counts.get('finished',0)
                       }
         
+        if remove_connection:
+            # connection has to be removed. otherwise calling hQBDSession returns (in the same thread)
+            # the same connection which doesn't see recent updates
+            dbconnection.remove()
+        
         return countsDict
 
 
-    def print_status(self, returnString=False, short=False):
+    def print_status(self, returnString=False, short=False, remove_connection=False ):
         """!@brief print status of server to stdout if not outSream is given
 
-        @param returnString (boolean) return formatted status instead of passing it to logger
+        @param returnString (boolean) return formatted status intsead of passing it to logger
 
         @return
         """
-        if returnString or not self.printing_status.is_set():
-            if not returnString:
-                # set flag
-                self.printing_status.set()
-
-            t = datetime.now()
-            
-            statusDict = self.get_status()
-
-            if short:
-                status = "[occupied slots:{oSlots:>3}/{tSlots:>3}] [waiting jobs:{wJobs:>3}]".format(**statusDict)
-            else:
-                hl = "--------------------------------------------------"
-                info = "[{t}] STATUS OF HQ-SERVER ON {h}:{p}".format(t=t, h=self.host, p=self.port)
-                
-                status = ""
-                status += "{s:>20} : {value}\n".format(s="active hosts", value=statusDict['hosts'] )
-                status += "{s:>20} : {value}\n".format(s="occupied slots", value="{occupied} / {total}".format(occupied=statusDict['oSlots'],total=statusDict['tSlots']) )
-                status += "{s:>20} : {value}\n".format(s="waiting jobs", value=statusDict['wJobs'] )
-                status += "{s:>20} : {value}\n".format(s="pending jobs", value=statusDict['pJobs'] )
-                status += "{s:>20} : {value}\n".format(s="running jobs", value=statusDict['rJobs'] )
-                status += "{s:>20} : {value}".format(s="finished jobs", value=statusDict['fJobs'] )
-                
-                status = "{info}\n{hl}\n{status}\n{hl}\n".format(hl=hl, info=info, status=status)
-            
-            if not returnString:
-                self.logger.write( status,
-                                   logCategory="status" )
-                self.printing_status.clear()
-            else:
-                return status
-
-
-    def loop_print_status( self, interval ):
-        """! @brief"""
-        while True:
-            # wait a little bit
-            sleep( interval )
-            
-            self.print_status(short=True)
         
+        statusDict = self.get_status( remove_connection=remove_connection )
 
+        t = datetime.now()
+        
+        if short:
+            status = "[waiting jobs:{wJobs:>3}] [running jobs:{rJobs:>3}] [finished jobs:{rJobs:>3}]".format(**statusDict)
+        else:
+            hl = "--------------------------------------------------"
+            info = "[{t}] STATUS OF HQ-USER-SERVER ON {h}:{p}".format(t=t, h=self.host, p=self.port)
+            status = ""
+            #status += "{s:>20} : {value}\n".format(s="cluster status", value=statusDict['status'] )
+            status += "{s:>20} : {value}\n".format(s="active hosts", value=statusDict['hosts'] )
+            status += "{s:>20} : {value}\n".format(s="occupied/total slots", value="{occupied} / {total}".format(occupied=statusDict['oSlots'],total=statusDict['tSlots']) )
+            status += "{s:>20} : {value}\n".format(s="waiting jobs", value=statusDict['wJobs'] )
+            status += "{s:>20} : {value}\n".format(s="pending jobs", value=statusDict['pJobs'] )
+            status += "{s:>20} : {value}\n".format(s="running jobs", value=statusDict['rJobs'] )
+            status += "{s:>20} : {value}".format(s="finished jobs", value=statusDict['fJobs'] )
+
+            status = "{info}\n{hl}\n{status}\n{hl}\n".format(hl=hl, info=info, status=status)
+
+        if returnString:
+            # just return string
+            return status
+        else:
+            # print status by logger
+            self.logger.write( status,
+                               logCategory="status" )
+
+            
     def loop_check_db( self ):
         """! @brief
 
@@ -282,7 +279,7 @@ class hQUserServer(hQBaseServer, Daemon):
 
                 ExecServer.shutdown()
             except:
-                print traceback.print_exc()
+                #print traceback.print_exc()
                 pass
         
         super( hQUserServer, self ).shutdown_server()
@@ -349,6 +346,15 @@ class hQUserServerRequestProcessor( hQBaseRequestProcessor ):
                                             arguments = ["job_id"],
                                             help = "return job info about job with given jobID",
                                             fct = self.process_lajob )
+        self.commands["LSGROUPS"] = hQCommand( name = 'lsgroups',
+                                            regExp = 'lsgroups',
+                                            help = "return groups of user",
+                                            fct = self.process_lsgroups )
+        self.commands["LAGROUP"] = hQCommand( name = 'lagroup',
+                                            regExp = 'lagroup:(.*)',
+                                            arguments = ["group_name"],
+                                            help = "return details about group with given group identifier",
+                                            fct = self.process_lagroup )
         self.commands["FINDJOBS"] = hQCommand( name = 'findjobs',
                                                regExp = 'findjobs:(.*)',
                                                arguments = ["match_str"],
@@ -747,6 +753,93 @@ class hQUserServerRequestProcessor( hQBaseRequestProcessor ):
             request.send( response )
         else:
             request.send("unkown job.")
+
+
+    def process_lsgroups( self, request ):
+        """ ! @brief process 'lagroup' command
+        """
+        
+        # connect to database
+        dbconnection = hQDBConnection()
+            
+        groupNames = dbconnection.query( db.Job.group )\
+                     .filter( db.Job.user_id==self.TMS.userID )\
+                     .distinct()\
+                     .all()
+
+        response = ""
+        for groupName, in groupNames:
+            # get all number of jobs for each status type for user
+            counts = dict( dbconnection.query( db.JobStatus.name, func.count('*') ).\
+                           join( db.JobDetails, db.JobDetails.job_status_id==db.JobStatus.id ).\
+                           join( db.Job, db.Job.id==db.JobDetails.job_id ).\
+                           filter( and_(db.Job.user_id==self.TMS.userID, db.Job.group==groupName) ).\
+                           group_by( db.JobStatus.name ).\
+                           all() )
+
+            finished = counts.get('finished',0)
+            all = counts.get('waiting',0) + counts.get('pending',0) + counts.get('running',0) + counts.get('finished',0)
+
+            if all!= 0:
+                progress = 1.0 * finished/all
+
+                response += "{s:>20} : {value}\n".format(s="group", value=groupName )
+                response += "{s:>20} : {value}\n".format(s="waiting jobs", value=counts.get('waiting',0) )
+                response += "{s:>20} : {value}\n".format(s="pending jobs", value=counts.get('pending',0) )
+                response += "{s:>20} : {value}\n".format(s="running jobs", value=counts.get('running',0) )
+                response += "{s:>20} : {value}\n".format(s="finished jobs", value=counts.get('finished',0) )
+                response += "{s:>20} : {value:.2%}\n".format(s="progress", value=progress )
+                response += "\n"
+
+
+        if response:
+            request.send( response )
+        else:
+            request.send( "no groups found" )
+
+
+
+    def process_lagroup( self, request, group_name ):
+        """ ! @brief process 'lagroup' command
+        """
+        
+        # connect to database
+        dbconnection = hQDBConnection()
+            
+        groupName = c.re.match(receivedStr).groups()[0]
+
+        # connect to database
+        dbconnection = hDBConnection()
+
+        # get all number of jobs for each status type for user
+        counts = dict( dbconnection.query( db.JobStatus.name, func.count('*') ).\
+                       join( db.JobDetails, db.JobDetails.job_status_id==db.JobStatus.id ).\
+                       join( db.Job, db.Job.id==db.JobDetails.job_id ).\
+                       filter( and_(db.Job.user_id==self.TMS.userID,
+                                    db.Job.group==groupName) ).\
+                       group_by( db.JobStatus.name ).\
+                       all() )
+
+        finished = counts.get('finished',0)
+        all = counts.get('waiting',0) + counts.get('pending',0) + counts.get('running',0) + counts.get('finished',0)
+
+        if all!= 0:
+            progress = 1.0 * finished/all
+
+            response = ""
+            response += "{s:>20} : {value}\n".format(s="group", value=groupName )
+            response += "{s:>20} : {value}\n".format(s="waiting jobs", value=counts.get('waiting',0) )
+            response += "{s:>20} : {value}\n".format(s="pending jobs", value=counts.get('pending',0) )
+            response += "{s:>20} : {value}\n".format(s="running jobs", value=counts.get('running',0) )
+            response += "{s:>20} : {value}\n".format(s="finished jobs", value=counts.get('finished',0) )
+
+
+            response += "{s:>20} : {value:.2%}\n".format(s="progress", value=progress )
+
+            request.send( response )
+        else:
+            request.send( "group is unknown" )
+
 
 
     def process_findjobs( self, request, match_str ):

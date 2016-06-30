@@ -1,11 +1,46 @@
-## defines a scoped session for creating thread local session by calling self.DBSession
-# 
-# See: http://docs.sqlalchemy.org/en/latest/orm/session_basics.html#what-does-the-session-do for
-# more info about sessions?
-# 
-# See: http://docs.sqlalchemy.org/en/rel_0_9/orm/session.html#contextual-thread-local-sessions for
-# thread local sessions which have to be using in web environments or other multithread
-# applications.
+"""defines a scoped session for creating thread local session by calling self.DBSession
+
+See: |what-does-the-session-do| for more info about sessions.
+
+A session factory and a scoped session is created here.
+
+**SessionFactory**
+ 
+see: |sessions|
+
+Session is a regular Python class which can be directly instantiated. However, to standardize how
+sessions are configured and acquired, the sessionmaker class is normally used to create a top
+level Session configuration which can then be used throughout an application without the need to
+repeat the configurational arguments.  sessionmaker() is a Session factory. A factory is just
+something that produces a new object when called.
+
+**DBSession**
+
+see: |contextual-thread-local-sessions| for thread local sessions which have to be using in web
+environments or other multithread applications.
+
+DBSession is a scoped Session class which will serve as a factory for new Session objects
+
+A scoped session is constructed by calling :func:`sqlalchemy.orm.scoped_session`, passing it a
+factory which can create new Session objects. A factory is just something that produces a new
+object when called, and in the case of Session
+
+If we call upon the registry DBSession a second time, we get back the same Session.
+
+
+.. |what-does-the-session-do| raw:: html
+
+   <a href="http://docs.sqlalchemy.org/en/latest/orm/session_basics.html\#what-does-the-session-do" target='_blank'>sqlalchemy: what does the session do</a>
+
+.. |contextual-thread-local-sessions| raw:: html
+
+   <a href="http://docs.sqlalchemy.org/en/rel_0_9/orm/session.html\#contextual-thread-local-sessions" target='_blank'>sqlalchemy: contextual thread local sessions</a>
+
+.. |sessions| raw:: html
+
+   <a href="http://docs.sqlalchemy.org/en/rel_0_9/orm/session.html" target='_blank'>sqlalchemy: sessions</a>
+
+"""
 
 import os
 import sys
@@ -36,6 +71,7 @@ databasePort = config.get( 'DATABASE', 'database_port' )
 databaseName = config.get( 'DATABASE', 'database_name' )
 databaseUsername = config.get( 'DATABASE', 'database_username' )
 databasePassword = config.get( 'DATABASE', 'database_password' )
+
 try:
     echo = config.getboolean( 'DATABASE', 'echo' )
 except:
@@ -43,11 +79,18 @@ except:
  
 
 def get_engine( echo=False ):
-    """! @brief get a database engine
+    """get a database engine
 
-    @param echo if True print SQL printing statements to stdout
+    **Kwargs**
+      echo (bool): if True print SQL printing statements to stdout
 
-    @return database engine
+    **Returns**
+      database engine
+
+    .. note::
+
+       connection details are stored in outer score
+       
     """
     
     engine = sqlalchemy.create_engine( "{dialect}://{user}:{password}@{host}:{port}/{name}".format( dialect=databaseDialect,
@@ -62,39 +105,23 @@ def get_engine( echo=False ):
                                        echo=echo )
     return engine
 
-## @var engine
+## engine
 engine = get_engine( echo=echo )
 
-## @var SessionFactory
-# 
-# http://docs.sqlalchemy.org/en/rel_0_9/orm/session.html:
-# Session is a regular Python class which can be directly instantiated. However, to standardize how sessions are 
-# configured and acquired, the sessionmaker class is normally used to create a top level Session configuration 
-# which can then be used throughout an application without the need to repeat the configurational arguments.
-# sessionmaker() is a Session factory. A factory is just something that produces a new object when called.
-#
+## define a session factory
 SessionFactory = sqlalchemy.orm.sessionmaker( bind = engine )
 
-## @var DBSession
-# define a Session class which will serve as a factory for new Session objects
-#
-# A scoped_session is constructed by calling it, passing it a factory which can create new
-# Session objects. A factory is just something that produces a new object when called, and in
-# the case of Session
-#
-# See http://docs.sqlalchemy.org/en/rel_0_9/orm/session.html#contextual-thread-local-sessions
-# 
-# If we call upon the registry DBSession a second time, we get back the same Session.
-
+## define a scoped session which will serve as a factory for new Session objects
 DBSession = sqlalchemy.orm.scoped_session( SessionFactory )
 
 
 def init_db( e=None ):
-    """! @brief Create all tables in the engine.
+    """create all tables in the engine.
 
-    @param e database engine
+    **Kwargs**
+      e (sqlalchemy engine): use this database engine instead of the one defined in the outer scope.
     
-    This is equivalent to 'CREATE TABLE' statements in raw SQL.
+    This is equivalent to ``CREATE TABLE`` statements in raw SQL.
     """
     
     Base.metadata.create_all( bind=e if e else engine )

@@ -9,7 +9,7 @@ import SocketServer
 import traceback
 import re
 
-# import hq libraries
+### import hq libraries
 from hq.lib.hQSocket import hQSocket
 from hq.lib.hQCommand import hQCommand
 from hq.lib.hQLogger import hQLogger, wrapLogger
@@ -22,10 +22,36 @@ import hq.lib.hQDatabase as db
 # path to config files
 ETCPATH = "{hqpath}/etc".format( hqpath=os.environ['HQPATH'] )
 
-PRINT_STATUS_COUNTER=5
+PRINT_STATUS_COUNTER=10
 SERVER_TIMEOUT=3
 
-class hQBaseServer(SocketServer.ThreadingMixIn, SocketServer.TCPServer, Daemon, object):
+class hQBaseServer(SocketServer.ThreadingMixIn, SocketServer.TCPServer, Daemon):
+    """Abstract class for a hq server.
+
+    The classes hQServer, ... inherite from this class
+
+    **Args**
+      | port (int): port on which server is listening
+      | handler (hQBaseServerHandler): handling a request
+      | processor (hQBaseRequestProcessor): executing a requested command
+
+
+    **Attributes**
+      | server_id (string): server idenfifier
+      | startTime (string): start time of server is epoch string
+      | mainThread (Thread): main thread
+      | host (string): host name of server
+      | port (int): port of server
+      | processor (hQBaseRequestProcessor): command executer
+      | logger (hQLogger): logger instance
+      | config (ConfigParser.ConfigParser): config of server
+      | timeout (float): server time out (time after which self.handle_request returns without a request)
+      | init_database_ids (dict): some database ids
+      | loops (dict): dictinary of periodically executed functions
+      | shutdown_server_event (threading.Event): an event which indicates a server shutdown
+      | print_status_counter (int): number of recently handled requests
+      
+    """
     # This means the main server will not do the equivalent of a
     # pthread_join() on the new threads.  With this set, Ctrl-C will
     # kill the server reliably.
@@ -48,8 +74,10 @@ class hQBaseServer(SocketServer.ThreadingMixIn, SocketServer.TCPServer, Daemon, 
                   handler,
                   processor ):
 
+        # set server id
         self.server_id = str( time.time() )
-        
+
+        # initializing Daemon 
         Daemon.__init__(self,'/tmp/{serverType}.{serverID}.pid'.format( serverType=self.server_type,
                                                                         serverID=self.server_id) )
         
@@ -78,7 +106,8 @@ class hQBaseServer(SocketServer.ThreadingMixIn, SocketServer.TCPServer, Daemon, 
         
         # store some database ids in dict
         self.init_database_ids()
-        
+
+        # dictinary of periodically executed functions
         self.loops = {}
 
         self.shutdown_server_event = threading.Event()
@@ -86,7 +115,7 @@ class hQBaseServer(SocketServer.ThreadingMixIn, SocketServer.TCPServer, Daemon, 
 
 
     def run(self):
-        """!@brief Start up a server
+        """Start up a server
         
         Each time a new request comes in it will be handled by a RequestHandler class
         """
@@ -114,11 +143,16 @@ class hQBaseServer(SocketServer.ThreadingMixIn, SocketServer.TCPServer, Daemon, 
         except KeyboardInterrupt:
             sys.exit(0)
 
+
     def store_details( self ):
-        """! extends store details about running server """
+        """store details about running server.
+
+        The module hQServerDetails is used for storing details.
+        """
         
         # create hQServerDetails instance
         hqServerDetails = hQServerDetails(self.server_type)
+        
         # write host and port to file <varpath>/hq.server.cfg
         hqServerDetails.save([ ('host', self.host),
                                ('port', self.port),
@@ -129,9 +163,10 @@ class hQBaseServer(SocketServer.ThreadingMixIn, SocketServer.TCPServer, Daemon, 
 
 
     def init_database_ids( self ):
-        """! @brief save some database ids in self.database_ids
+        """save some database ids in the dictinary self.database_ids for faster access.
         """
 
+        # establish database connection
         con = hQDBConnection()
         
         self.database_ids = dict( con.query( db.JobStatus.name,
@@ -139,15 +174,16 @@ class hQBaseServer(SocketServer.ThreadingMixIn, SocketServer.TCPServer, Daemon, 
 
 
     def serve_forever(self):
-        """!@brief overwrites serve_forever of SocketServer.TCPServer"""
-    
-        # set threads as daemon threads
-        # the threading doc says:
-        #    A thread can be flagged as a "daemon thread". The significance of this flag is that the
-        #    entire Python program exits when only daemon threads are left. The initial value is
-        #    inherited from the creating thread. The flag can be set through the daemon property.
-    
+        """overwrites serve_forever of SocketServer.TCPServer
+
+        set threads as daemon threads. the threading doc says::
         
+            A thread can be flagged as a "daemon thread". The significance of this flag is that the
+            entire Python program exits when only daemon threads are left. The initial value is
+            inherited from the creating thread. The flag can be set through the daemon property.
+    
+        """
+    
         # print status to stdout
         self.print_status()
 
@@ -155,6 +191,7 @@ class hQBaseServer(SocketServer.ThreadingMixIn, SocketServer.TCPServer, Daemon, 
                            logCategory='status')
         
 
+        # handle request unless server is shutting down
         while not self.shutdown_server_event.is_set():
             self.handle_request()
 
@@ -162,16 +199,23 @@ class hQBaseServer(SocketServer.ThreadingMixIn, SocketServer.TCPServer, Daemon, 
 
         self.shutdown_server()
 
-    def after_request_processing( self ):
-        """! @brief is executed after a request came in
 
-        can be overwritten by child class
+    def after_request_processing( self ):
+        """is executed after a request came in
+
+        should be overwritten by child class
         """
         pass
 
 
     def run_loop( self, name, **kwargs ):
-        """! @brief generic function for periodically executing a function
+        """generic function for periodically executing a function
+
+        **Args**
+          | name (string): loop identifier
+
+        **Kwargs**
+          | kwargs: arguments for loop function
 
         """
 
@@ -185,34 +229,38 @@ class hQBaseServer(SocketServer.ThreadingMixIn, SocketServer.TCPServer, Daemon, 
             time.sleep( interval )
 
             try:
-                if not loop[ 'event' ].is_set():
-                    loop[ 'event' ].set()
+                if not loop[ 'is_running' ].is_set():
+                    # set lock
+                    loop[ 'is_running' ].set()
+                    # run function
                     fct( **kwargs )
+                    # release lock
+                    loop[ 'is_running' ].clear()
                 else:
                     # skip while the previous function is still executing
+                    self.logger.write( 'loop {p} is still running'.format(p=name) )
                     continue
             except:
-                pass
-            finally:
-                loop[ 'event' ].clear()
+                # something went wrong
+                # release lock
+                self.logger.write( 'loop {p} had an exception'.format(p=name) )
+                loop[ 'is_running' ].clear()
 
             
     def start_loops( self ):
-        """! @brief start loops """
+        """start loops """
 
-        # iterate over all loop functions in self.loops and start them in an own thread,
+        # iterate over all loop functions in self.loops and start each in an thread,
         # respectively
         for loopName,loop in self.loops.iteritems():
-            fct = loop['fct']
-            interval = loop['interval']
+            # collect arguments for self.run_loop
             kwargs = loop.get( 'kwargs', {} )
 
-            #l = threading.Thread( target=fct, kwargs={ 'interval': interval} )
             loopKwargs = kwargs.copy()
             loopKwargs.update( { 'name': loopName } )
 
-            # add an event lock to the loop
-            self.loops[ loopName ][ 'event' ] = threading.Event()
+            # add an event lock to the loop as an idicator of beeing running
+            self.loops[ loopName ][ 'is_running' ] = threading.Event()
                                
             l = threading.Thread( target=self.run_loop, kwargs=loopKwargs )
             l.setDaemon( True )
@@ -225,26 +273,34 @@ class hQBaseServer(SocketServer.ThreadingMixIn, SocketServer.TCPServer, Daemon, 
 
                                
     def print_status( self, *args, **kwargs ):
-        """! @brief print status of server to stdout
+        """print status of server to stdout
 
         has to be overwritten by the child
         """
         pass
+
     
     def shutdown_server( self ):
-        """! @brief shutdown server """
+        """shutdown server """
         self.logger.write( "server is about to shutdown.",
                            logCategory='system')
         
         # wait until all threads have been finished
-        
+        ### has to be implemented
         
         self.logger.write( "shutdown.",
                            logCategory='system')
         
         
-# RequestHandler handles an incoming request.
-class hQBaseServerHandler(SocketServer.BaseRequestHandler,object):
+class hQBaseServerHandler(SocketServer.BaseRequestHandler):
+    """This class handles an incoming request
+
+    **Args**
+      | request (object): request object
+      | clientAddress (string): address of requesting client
+      | server (hQBaseServer): server which got the request
+      
+    """
     def __init__(self, request, clientAddress, server):
         self.request = request
         self.requestHost, self.requestPort = self.request.getpeername()
@@ -263,10 +319,13 @@ class hQBaseServerHandler(SocketServer.BaseRequestHandler,object):
 
 
     def handle(self):
+        """request handler"""
         if self.srv.shutdown_server_event.is_set():
             # do not process event while server ist shutting down
             return
-        
+
+        # since after a predefined number of request the status is printed on console
+        # number of handled requests is counted here
         self.srv.print_status_counter += 1
         
         # create a hQSocket-instance
@@ -282,9 +341,6 @@ class hQBaseServerHandler(SocketServer.BaseRequestHandler,object):
                          logCategory='warning' )
             return
 
-        #requestStrShort = "{r1}{dots}{r2}".format( r1=receivedStr[:20] if len(receivedStr)>40 else receivedStr,
-        #                                           dots="   " if len(receivedStr)>80 else "",
-        #                                           r2=receivedStr[-20:] if len(receivedStr)>40 else "" )
         requestStrShort = "{r1}{dots}".format( r1=receivedStr[:30] if len(receivedStr)>30 else receivedStr,
                                                dots="..." if len(receivedStr)>30 else ""
                                                )
@@ -322,23 +378,28 @@ class hQBaseServerHandler(SocketServer.BaseRequestHandler,object):
             
 
     def finish(self):
-        """! @brief excute functions after request has been processed
+        """excute functions after request has been processed
         """
         if self.srv.shutdown_server_event.is_set():
             # do not process event while server ist shutting down
             return
-        
+
         if self.srv.print_status_counter>=PRINT_STATUS_COUNTER:
             self.srv.print_status_counter = 0
             
-            self.srv.print_status( short=True )
+            self.srv.print_status( short=False )
             
         super(hQBaseServerHandler, self).finish()
     
 
 
-# This class is used to process the commands
 class hQBaseRequestProcessor(object):
+    """define command which can be send to server
+
+    Possible commands are defined here. Each command is an instance of hQCommand.
+
+    The client class may add more, server specific commands.
+    """
     def __init__( self ):
         ############
         # define commands
@@ -380,20 +441,25 @@ class hQBaseRequestProcessor(object):
                                                regExp = "^lslogger$",
                                                help = "return logger setting",
                                                fct = self.process_lslogger )
-        self.commands["SETLOGGER"] = hQCommand( name = "setlogger",
-                                                regExp = "^setlogger:([^:]*):([^:]*)",
-                                                arguments = ["logger","status"],
-                                                help = "set logger on or off",
-                                                fct = self.process_setlogger )
+        self.commands["ACTIVATELOGGER"] = hQCommand( name = "activatelogger",
+                                                     regExp = "^activatelogger:(.*)",
+                                                     arguments = ["logger"],
+                                                     help = "activate logger",
+                                                     fct = self.process_activatelogger )
+        self.commands["DEACTIVATELOGGER"] = hQCommand( name = "deactivatelogger",
+                                                       regExp = "^deactivatelogger:(.*)",
+                                                       arguments = ["logger"],
+                                                       help = "deactivate logger",
+                                                       fct = self.process_deactivatelogger )
         self.commands["LSLOOP"] = hQCommand( name = "lsloops",
                                               regExp = "^lsloops$",
                                               help = "return list of loops",
                                               fct = self.process_lsloops )
-        self.commands["SETLOOP"] = hQCommand( name = "setloop",
-                                              regExp = "^setloop:(.*):(.*)$",
+        self.commands["SETLOOPINTERVAL"] = hQCommand( name = "setloopinterval",
+                                              regExp = "^setloopinterval:(.*):(.*)$",
                                               arguments = ["loop_key","interval"],
-                                              help = "set interval of loop with provided key (check lsloops) to provided interval in seconds",
-                                              fct = self.process_setloop )
+                                              help = "set interval of loop with provided key (check lsloops) to interval in seconds",
+                                              fct = self.process_updateloop )
         self.commands["SLEEP"] = hQCommand( name = "sleep",
                                             regExp = "^sleep:(.*)",
                                             arguments = ['time_in_secs'],
@@ -404,16 +470,29 @@ class hQBaseRequestProcessor(object):
         ##self.help = {}
 
     def process(self, requestStr, request, logger, server):
-        """! @brief Process a requestStr"""
+        """parse requst string and process command
+
+        **Args**
+          | requestStr (string): request as string
+          | request (object): request object
+          | logger (hQLogger): logger instance.
+          | server (hQBaseServer): server instance which got this request
+          
+        """
         self.writeLog = logger
         self.server = server
 
-        #if not self.help:
-        #    # generate dictinary with regular regression for each command
-        #    self.help = { key: re.compile('^help {cmd_name}$'.format(cmd_name=cmd.name)) for key,cmd in self.commands.iteritems() }
-
+        # parse request string. request string could be:
+        #    help
+        #    help COMMAND_STR
+        #    COMMAND
+        # where COMMAND_STR is either a full name of a command and an incomplete command string
         m = re.match( 'help ?(.*)', requestStr )
         if m:
+            # request string is
+            #   help
+            #   help COMMAND_STR
+            
             command = m.group(1)
             
             if command=="":
@@ -427,7 +506,10 @@ class hQBaseRequestProcessor(object):
 
                 request.send( '\n'.join( help ) )
             else:
+                # check if COMMAND_STR is known by server, i.e. is present in self.commands
+                # match COMMAND_STR against each hQCommand.name
                 try:
+                    # find first matching command
                     key = next( key for key,c in self.commands.iteritems() if command==c.name )
 
                     cmd = self.commands[ key ]
@@ -440,6 +522,7 @@ class hQBaseRequestProcessor(object):
 
                     request.send( '\n'.join( response ) )
                 except StopIteration:
+                    # COMMAND_STR ist not known. find all commands which begin with COMMAND_STR
                     matching_commands = [ c.name for key,c in self.commands.iteritems() if c.name.startswith( command ) ]
 
                     if matching_commands:
@@ -454,7 +537,8 @@ class hQBaseRequestProcessor(object):
                     else:
                         request.send( 'no matching command.' )
         else:
-            # (2) find matching command and execute associate function
+            # request string does not beginn with 'help'
+            # find matching command and execute associate function
             try:
                 cmd = next( cmd for cmd_str,cmd in self.commands.iteritems() if cmd.match( requestStr ) )
             except:
@@ -463,8 +547,10 @@ class hQBaseRequestProcessor(object):
                 request.send("what do you want?")
                 return
 
-            # process request
+            # command was found. call associated function
             try:
+                # call associated function (defined as method of hQBaseRequestProcessor or server
+                # specific processor) with the function arguments
                 self._call_fct( cmd, requestStr, request )
             except:
                 self.writeLog("error while processing request.", logCategory='request_processing')
@@ -476,12 +562,30 @@ class hQBaseRequestProcessor(object):
 
             
     def _call_fct( self, cmd, requestStr, request ):
-        """! @brief call function with right arguments"""
+        """call function with right arguments
+
+        The required arguments of the command are stored in the attribute :attr:`hQCommand.arguments`.
+        
+        **Args**
+          | cmd (hQCommand): instance
+          | requestStr (string): original request string
+          | request (object): request object
+          
+        """
+
+        # first map required commands given as string in cmd.arguments and found arguments from
+        # regular expression. then call associated function
         cmd.fct( request, **dict( zip(cmd.arguments,cmd.groups(requestStr)) ) )
 
         
     def process_help( self, request ):
-        """! @brief process 'help' command
+        """process 'help' command
+
+        return rendered help via request object.
+        
+        **Args**
+          | request (object): request object
+
         """
         help = []
         help.append( "Known commands:" )
@@ -493,13 +597,25 @@ class hQBaseRequestProcessor(object):
 
 
     def process_ping( self, request ):
-        """! @brief process 'ping' command
+        """process 'ping' command
+
+        return a 'pong' via request object.
+        
+        **Args**
+          | request (object): request object
+
         """
         request.send("pong")
 
         
     def process_details( self, request ):
-        """! @brief process 'details' command
+        """process 'details' command
+
+        return rendered overview of details of the server via request object.
+        
+        **Args**
+          | request (object): request object
+
         """
 
         details  = 'Details about {name}\n'.format( name=self.server.server_type )
@@ -513,7 +629,13 @@ class hQBaseRequestProcessor(object):
 
 
     def process_status( self, request ):
-        """! @brief process 'lsloops' command
+        """process 'status' command
+        
+        return rendered overview of the status of the server via request object.
+        
+        **Args**
+          | request (object): request object
+          
         """
         
         status = self.server.print_status( returnString=True )
@@ -522,21 +644,39 @@ class hQBaseRequestProcessor(object):
 
         
     def process_shutdown( self, request ):
-        """! @brief process 'shutdown' command
+        """process 'shutdown' command
+
+        initiate server shutdown. the event :attr:`hQBaseServer.shutdown_server_event` is set.
+        
+        **Args**
+          | request (object): request object
+        
         """
 
         self.server.shutdown_server_event.set()
         
         
-    def process_sleep( self, request, **kwargs ):
-        """! @brief just sleep"""
+    def process_sleep( self, request, time_in_secs ):
+        """just sleep for a certain amount of time.
+
+        **Args**
+          | request (object): request object
+          | time_in_secs (string): how long the current thread should sleep in seconds.
+          
+        """
 
         t = int( kwargs['time_in_secs'] )
         time.sleep( t )
 
         
     def process_lsthreads( self, request ):
-        """! @brief process 'lsthreads' command
+        """process 'lsthreads' command
+
+        return rendered overview of threads via request object.
+        
+        **Args**
+          | request (object): request object
+        
         """
 
         def _formatDict( idx, t):
@@ -550,7 +690,14 @@ class hQBaseRequestProcessor(object):
             
 
     def process_lsthread( self, request, ident ):
-        """! @brief process 'lsthreads' command
+        """process 'lsthreads' command
+
+        return rendered overview of a specific thread identified by :obj:`ident` via request object.
+        
+        **Args**
+          | request (object): request object
+          | ident (int|string): thread identifier
+        
         """
         try:
             ident = int( ident )
@@ -559,6 +706,7 @@ class hQBaseRequestProcessor(object):
             return
 
         try:
+            # find matching thread.
             thread = next( t for t in threading.enumerate() if t.ident==ident )
         except StopIteration:
             # not found
@@ -582,7 +730,14 @@ class hQBaseRequestProcessor(object):
         request.send( response )
 
     def process_lsloops( self, request ):
-        """! @brief process 'lsloops' command
+        """process 'lsloops' command
+        
+        return rendered overview of a loops via request object.
+        
+        **Args**
+          | request (object): request object
+          | ident (int|string): thread identifier
+        
         """
 
         def _formatDict( idx, loopKey):
@@ -597,8 +752,24 @@ class hQBaseRequestProcessor(object):
         request.send( '\n'.join( loopList ) )
 
 
-    def process_setloop( self, request, loop_key, interval ):
-        """! @brief process 'lsloop' command
+    def process_updateloop( self, request, loop_key, interval ):
+        """process 'updateloop' command
+
+        update interval of loop (peridocally executed function).
+
+        .. note::
+        
+          The new interval is considered after the associated function is executed another time.
+
+        .. note::
+
+          Loop should be stopped and restarted here.
+          
+        **Args**
+          | request (object): request object
+          | loop_key (string): loop identifier
+          | interval (float|string): new interval
+        
         """
 
         if loop_key in self.server.loops:
@@ -610,7 +781,13 @@ class hQBaseRequestProcessor(object):
         
 
     def process_lslogger( self, request ):
-        """! @brief process 'lslogger' command
+        """process 'lslogger' command
+        
+        return rendered overview of logger setup via request object.
+        
+        **Args**
+          | request (object): request object
+        
         """
 
         response = ["Logger setting"]
@@ -622,21 +799,46 @@ class hQBaseRequestProcessor(object):
         request.send( '\n'.join( response ) )
 
             
-    def process_setlogger( self, request, logger, status ):
-        """ ! @brief process 'setlogger' command
+    def process_activatelogger( self, request, logger ):
+        """process 'activatelogger' command
+
+        activate a certain logger.
+        
+        **Args**
+          | request (object): request object
+          | logger (string): logger identifier, i.e., key in :attr:`hQBaseRequestProcessor.logger`
+        
         """
 
         if logger in self.server.logger.logCategories:
-            if status in ["on","True","true"]:
-                # turn on logger
-                self.server.logger.logCategories[ logger ] = True
-                request.send("logger '{l}' has been turned on.".format(l=logger) )
-                return
-            else:
-                # turn off logger
-                self.server.logger.logCategories[ logger ] = False
-                request.send("logger '{l}' has been turned off.".format(l=logger) )
-                return
+            # turn on logger
+            self.server.logger.logCategories[ logger ] = True
+            
+            request.send("logger '{l}' has been turned on.".format(l=logger) )
+            
+            return
                 
         request.send("nothing has been done.")
+
+    def process_deactivatelogger( self, request, logger ):
+        """process 'deactivatelogger' command
+        
+        deactivate a certain logger.
+        
+        **Args**
+          | request (object): request object
+          | logger (string): logger identifier, i.e., key in :attr:`hQBaseRequestProcessor.logger`
+        
+        """
+
+        if logger in self.server.logger.logCategories:
+            # turn off logger
+            self.server.logger.logCategories[ logger ] = False
+            
+            request.send("logger '{l}' has been turned off.".format(l=logger) )
+            
+            return
+                
+        request.send("nothing has been done.")
+
 

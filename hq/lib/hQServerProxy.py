@@ -134,6 +134,8 @@ class hQServerProxy(object):
             # try to start a new Server on port in case of status 2 or 3
             status = self.invokeServer( cnt )
 
+        return self
+
     def connect( self ):
         """! @brief just create new socket """
 
@@ -144,6 +146,8 @@ class hQServerProxy(object):
                                             catchErrors=False )
             except:
                 pass
+
+        return self
 
     def isRunning( self ):
         """! @brief check if server is running
@@ -288,7 +292,7 @@ class hQServerProxy(object):
 
         logger.info( "... done" )
         
-        return True
+        return self
 
 
     def recv(self):
@@ -315,6 +319,8 @@ class hQServerProxy(object):
         self.clientSock.shutdown(socket.SHUT_RDWR)
         self.openConnection = False
 
+        return None
+
 
     def sendAndRecv(self,request):
         """ send request to server and receive response"""
@@ -323,20 +329,20 @@ class hQServerProxy(object):
         return self.recv()
 
 
-    ##def sendAndClose(self,request):
-    ##    """ send request to server and close connection"""
-    ##    try:
-    ##        self.send(request)
-    ##        self.close()
-    ##    except socket.error,msg:
-    ##        self.openConnection = False
-    ##        sys.stderr.write("SOCKET ERROR: % s\n" % msg)
-    ##    except:
-    ##        self.openConnection = False
-    ##        sys.stderr.write("UNKNOWN ERROR: % s\n" % sys.exc_info()[0])
-    ##        traceback.print_exc(file=sys.stderr)
-    ##
-    ##
+    def sendAndClose(self,request):
+        """ send request to server and close connection"""
+        try:
+            self.send(request)
+            self.close()
+        except socket.error,msg:
+            self.openConnection = False
+            sys.stderr.write("SOCKET ERROR: % s\n" % msg)
+        except:
+            self.openConnection = False
+            sys.stderr.write("UNKNOWN ERROR: % s\n" % sys.exc_info()[0])
+            traceback.print_exc(file=sys.stderr)
+    
+    
     ##def sendAndRecvAndClose(self,request):
     ##    """ send request to server, receive response and close connection"""
     ##    try:

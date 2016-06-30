@@ -1,8 +1,8 @@
 import os
 import sys
 
-from sqlalchemy import create_engine, MetaData
-from sqlalchemy.orm import sessionmaker, scoped_session
+from sqlalchemy import MetaData
+#from sqlalchemy.orm import sessionmaker, scoped_session
 
 # import hq libraries
 import hq.lib.hQDBSessionRegistry as hQDBSessionRegistry
@@ -12,105 +12,109 @@ engine = hQDBSessionRegistry.engine
 
 
 class hQDBConnection( object ):
-    def __init__( self, echo=False ):
-        ### Create an engine that stores data in the local directory's
-        ### sqlalchemy_example.db file.
-        ###engine = create_engine( 'sqlite:///{varpath}/taskDispatcher.db'.format(varpath=varpath), echo=False )
-        ##engine = create_engine( 'mysql://{user}:{password}@localhost/taskdispatcherdb'.format(user='tdadmin',password='tAskd1sPatcher'), echo=False )
- 
-        ### Create all tables in the engine. This is equivalent to "Create Table"
-        ### statements in raw SQL.
-        ##Base.metadata.create_all( engine )
+    """database connection
 
-        ###DBSession = sessionmaker( bind=engine )
-        ### A DBSession() instance establishes all conversations with the database
-        ### and represents a "staging zone" for all the objects loaded into the
-        ### database session object. Any change made against the objects in the
-        ### session won't be persisted into the database until you call
-        ### session.commit(). If you're not happy about the changes, you can
-        ### revert all of them back to the last commit by calling
-        ### session.rollback()
-        #self.dbSessionMaker = hDBSessionMaker( echo=echo )
-        #self.session = self.dbSessionMaker.DBSession()
+    A session is creating by calling :obj:`DBSession` which is defined in
+    :class:`hq.lib.hQDBSessionRegistry`. A DBSession instance establishes all conversations with the
+    database and represents a 'staging zone' for all the objects loaded into the database session
+    object. Any change made against the objects in the session won't be persisted into the database
+    until you call session.commit(). If you're not happy about the changes, you can revert all of
+    them back to the last commit by calling session.rollback()
+    """
+    
+    def __init__( self, echo=False ):
+        # create a connection to the database
         self.session = DBSession()
-        
-        ##### @var ScopedSession
-        ####The session that represents the connection to the database
-        ###if not scopedSession:
-        ###    self.ScopedSession = scoped_session( DBSession )
-        ###else:
-        ###    self.ScopedSession = scopedSession
-        ###
-        ##### @var session
-        #### A ScopedSession() instance establishes all conversations with the database
-        #### and represents a "staging zone" for all the objects loaded into the
-        #### database session object. Any change made against the objects in the
-        #### session won't be persisted into the database until you call
-        #### session.commit(). If you're not happy about the changes, you can
-        #### revert all of them back to the last commit by calling
-        #### session.rollback()
-        ###self.session = self.ScopedSession()
         
     #def __del__( self ):
     #    """! @brief Tidy up session upon destruction of the Connect object"""
     #    self.session.remove()
 
     def query( self, *args, **kwargs ):
-        """! @brief Alias for session.query()
+        """alias for session.query()
+
+        **Args**
+          args: Arguments that should be forwarded to session.query
+          
+        **Kwargs**
+          kwargs: Keyword arguments that should be forwarded to session.query
         
-        @param args Arguments that should be forwarded to session.query
-        @param kwargs Keyword arguments that should be forwarded to session.query
-        
-        @return A query object that can be further refined
+        **Returns**
+          A query object that can be further refined
+          
         """
         
         return self.session.query( *args, **kwargs )
 
+
     def introduce( self, *objects ):
-        """! Prepare objects for commit to the database
+        """Prepare objects for commit to the database by adding to session
+
+        :func:`session.add()` is called for each object.
+
+        Pending transactions are execute after calling :meth:`commit`.
         
-        @param objects Any number of database objects that should be introduced to the database
-        @return self
+        **Args**
+          objects: Any number of database objects that should be introduced to the database
+
+        **Return**
+          self
+          
         """
         for obj in objects:
             self.session.add( obj )
+
+        return self
  
     def delete( self, *objects ):
-        """! @brief Mark objects for deletion from the database.
+        """Mark objects for deletion from the database.
 
-        @param objects Any number of database objects that should be deleted.
-        @return self
+        :func:`session.delete()` is called for each object
+        
+        Pending transactions are execute after calling :meth:`commit`.
+        
+        **Args**
+          objects Any number of database objects that should be deleted.
+
+        **Return**
+          self
         """
+        
         for obj in objects:
             self.session.delete( obj )
+            
         return self
 
     def commit( self ):
-        """! @brief Commit all objects that have been prepared
-        
-        @return return value from sqlalchemy's @c commit() method
+        """Commit all objects that have been prepared
+
+        **Return**
+          value from sqlalchemy's :func:`session.commit()`
         """
         return self.session.commit()
 
     def remove( self ):
-        """! @brief tell registry to dispose of session
+        """tell registry to dispose session
         """
         
-        #self.dbSessionMaker.DBSession.remove()
         DBSession.remove()
         
     def create_all_tables( self ):
-        """! brief This will not re-create tables that already exist
+        """create tables defined in database model in database if not exist
+
         """
         
         from hDatabase import Base
-        #Base.metadata.create_all( self.dbSessionMaker.engine )
+        
         Base.metadata.create_all( engine )
 
     def drop_all_tables( self ):
-        """! brief This will really drop all tables including their contents."""
+        """drop all tables in database
 
-        #meta = MetaData( self.dbSessionMaker.engine )
+        .. warning:: This will really drop all tables including their contents.
+        """
+
+
         meta = MetaData( engine )
         meta.reflect()
         meta.drop_all()
